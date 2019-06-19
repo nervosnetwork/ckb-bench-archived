@@ -1,0 +1,45 @@
+---
+- hosts: all
+  name: Setup ckb node
+  user: ubuntu
+  vars:
+    rustc: 1.34.2
+    checkouts: /home/ubuntu/checkouts
+    deploy: /home/ubuntu/deploy
+  tasks:
+    - name: Install rustup
+      shell: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+      tags: init
+
+    - name: Install rustc
+      shell: bash -lc "rustup toolchain install {{ rustc }}"
+      tags: init
+
+    - name: Install build tools
+      become: true
+      apt:
+        name:
+          - git
+          - gcc
+          - libc6-dev
+          - pkg-config
+          - libssl-dev
+          - libclang-dev
+          - clang
+        update_cache: true
+      tags: init
+
+    - name: Checkout ckb
+      register: ckb_checkout
+      git:
+        repo: https://github.com/nervosnetwork/ckb
+        dest: "{{ checkouts }}/ckb"
+        version: develop
+      tags: ckb
+
+    - name: Build ckb
+      when: ckb_checkout.changed
+      shell: bash -lc "make prod"
+      args:
+        chdir: "{{ checkouts }}/ckb"
+      tags: ckb
