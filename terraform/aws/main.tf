@@ -76,6 +76,10 @@ resource "aws_instance" "instance" {
     vpc_security_group_ids = ["${aws_security_group.sg.id}"]
     subnet_id              = "${aws_subnet.subnet.id}"
 
+    root_block_device {
+        volume_size = "60"
+    }
+
     tags = {
         Name = "${var.prefix}-instance-${count.index}"
     }

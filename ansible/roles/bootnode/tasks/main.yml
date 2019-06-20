@@ -1,0 +1,8 @@
+- name: Setup bootnode ckb key
+  become: true
+  copy:
+    src: files/secret_key
+    dest: "{{ run_folder }}/data/network/"
+    owner: ckb
+    group: ckb
+  tags: bootnode

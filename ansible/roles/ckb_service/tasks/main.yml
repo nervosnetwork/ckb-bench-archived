@@ -1,0 +1,40 @@
+- name: Checkout ckb
+  register: ckb_checkout
+  git:
+    repo: https://github.com/nervosnetwork/ckb
+    dest: "{{ checkouts }}/ckb"
+    # can use branch / tag / commit hash here
+    version: "{{ ckb_version }}"
+  tags: ckb_service
+
+- name: Build ckb
+  when: ckb_checkout.changed
+  shell: bash -lc "make prod"
+  args:
+    chdir: "{{ checkouts }}/ckb"
+  tags: ckb_service
+
+- name: Start ckb as service
+  become: true
+  shell: |
+    cp {{ checkouts }}/ckb/target/release/ckb /usr/local/bin
+    chown root:root /usr/local/bin/ckb
+    chmod 755 /usr/local/bin/ckb
+
+    mkdir -p {{ run_folder }}
+    ckb init -C {{ run_folder }} --chain dev --force
+
+    groupadd ckb
+    useradd -g ckb --no-user-group --no-create-home --shell /usr/sbin/nologin --system ckb
+
+    chown -R ckb:ckb {{ run_folder }}
+    chmod 755 {{ run_folder }}
+    chmod 644 {{ run_folder }}/ckb.toml {{ run_folder }}/ckb-miner.toml {{ run_folder }}/specs/dev.toml
+    sed -i 's_bootnodes = \[\]_bootnodes = ["/ip4/10.0.1.140/tcp/8115/p2p/QmUsp8guKsvAGeWYoLm2J7o544MCLg3nfGNtP7TvosR5kg"]_g' {{ run_folder }}/ckb.toml
+
+    cp {{ checkouts }}/ckb/devtools/init/linux-systemd/ckb.service /etc/systemd/system/
+    chown root:root /etc/systemd/system/ckb.service
+    chmod 644 /etc/systemd/system/ckb.service
+    systemctl daemon-reload
+    systemctl restart ckb.service
+  tags: ckb_service

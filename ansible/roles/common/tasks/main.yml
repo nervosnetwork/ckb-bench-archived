@@ -1,0 +1,28 @@
+- name: Install rustup
+  shell: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+  tags: common
+
+- name: Install rust
+  shell: bash -lc "rustup toolchain install {{ rust_version }}"
+  tags: common
+
+- name: Install build tools
+  become: true
+  apt:
+    name:
+      - git
+      - gcc
+      - libc6-dev
+      - pkg-config
+      - libssl-dev
+      - libclang-dev
+      - clang
+    update_cache: true
+  tags: common
+
+- name: Create ckb user and group
+  user:
+    name: ckb
+    group: ckb
+    create_home: false
+  tags: common
