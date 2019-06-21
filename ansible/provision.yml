@@ -7,6 +7,16 @@
       vars:
         rust_version: 1.34.2
 
+- hosts: bastion
+  name: Setup bastion
+  user: ubuntu
+  roles:
+    - role: bastion
+      vars:
+        checkouts: /home/ubuntu/checkouts
+        # can use branch / tag / commit hash here
+        ckb_version: develop
+
 - hosts: instances[0]
   name: Setup bootnode
   user: ubuntu
@@ -16,10 +26,10 @@
         run_folder: /var/lib/ckb
 
 - hosts: instances
-  name: Setup ckb service
+  name: Setup ckb bench instances
   user: ubuntu
   roles:
-    - role: ckb_service
+    - role: instances
       vars:
         checkouts: /home/ubuntu/checkouts
         run_folder: /var/lib/ckb

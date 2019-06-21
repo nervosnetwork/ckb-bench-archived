@@ -1,0 +1,29 @@
+- name: Checkout ckb
+  register: ckb_checkout
+  git:
+    repo: https://github.com/nervosnetwork/ckb
+    dest: "{{ checkouts }}/ckb"
+    version: "{{ ckb_version }}"
+  tags: build_ckb
+
+- name: Build ckb
+  shell: bash -lc "make prod"
+  args:
+    chdir: "{{ checkouts }}/ckb"
+  async: 3600
+  poll: 15
+  tags: build_ckb
+
+- name: Checkout ckb-bench
+  register: ckb_bench_checkout
+  git:
+    repo: https://github.com/keroro520/ckb-bench
+    dest: "{{ checkouts }}/ckb-bench"
+    version: master
+  tags: build_ckb_bench
+
+- name: Build ckb-bench
+  shell: bash -lc "cargo build --release"
+  args:
+    chdir: "{{ checkouts }}/ckb-bench"
+  tags: build_ckb_bench

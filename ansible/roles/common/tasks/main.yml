@@ -33,3 +33,27 @@
     group: ckb
     create_home: false
   tags: common
+
+- name: SSH keygen command
+  shell: >
+    ssh-keygen -q -b 2048 -t rsa -N "" -C "ansible keygen" -f ~/.ssh/id_rsa
+    creates="~/.ssh/id_rsa"
+  tags: exchange_keys
+
+- name: Fetch the keyfile from the node to local
+  fetch:
+    src: "~/.ssh/id_rsa.pub"
+    dest: "tmp/{{ ansible_host }}-id_rsa.pub"
+    flat: yes
+  tags: exchange_keys
+
+- name: Copy the key add to authorized_keys using Ansible module
+  authorized_key:
+    user: ubuntu
+    state: present
+    key: "{{ lookup('file','tmp/{{ hostvars[item].ansible_host }}-id_rsa.pub')}}"
+  when: hostvars[item].ansible_host != ansible_host
+  with_items:
+    - "{{ groups['bastion'] }}"
+    - "{{ groups['instances'] }}"
+  tags: exchange_keys

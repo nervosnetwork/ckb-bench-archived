@@ -1,0 +1,45 @@
+- name: Stop ckb service
+  become: true
+  service:
+    name: ckb.service
+    state: stopped
+  ignore_errors: true
+  tags: ckb_service
+
+# 10.0.1.100 is hardcoded, it's private ip of bastion
+- name: Copy ckb binary and service file from bastion
+  shell: |
+    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null 10.0.1.100:{{ checkouts }}/ckb/target/release/ckb /tmp
+    sudo cp /tmp/ckb /usr/local/bin/ckb
+    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null 10.0.1.100:{{ checkouts }}/ckb/devtools/init/linux-systemd/ckb.service /tmp
+    sudo cp /tmp/ckb.service /etc/systemd/system/ckb.service
+  tags: ckb_service
+
+- name: Init ckb config files
+  become: true
+  # QmUsp8guKsvAGeWYoLm2J7o544MCLg3nfGNtP7TvosR5kg is hardcoded, it's the public key of `bootnode/files/secret_key`
+  # 0485cb50375f3134d0a0e5491852e3a99124a55d28c59498a6b2b39da4b4d41f961ed24d966110e435e2c4843443b1b458de2018e195860e2a9c4fa18cdb15e4d1 is hardcoded,
+  # it's the public key of private key `9c7db25395517b0e927906ceadb62d9a862ba69c4276d93473ee0bec892acdc9`
+  shell: |
+    chown root:root /usr/local/bin/ckb
+    chmod 755 /usr/local/bin/ckb
+
+    mkdir -p {{ run_folder }}
+    ckb init $(ckb cli secp256k1-lock 0485cb50375f3134d0a0e5491852e3a99124a55d28c59498a6b2b39da4b4d41f961ed24d966110e435e2c4843443b1b458de2018e195860e2a9c4fa18cdb15e4d1 --format cmd) -C {{ run_folder }} --chain dev --force
+
+    chown -R ckb:ckb {{ run_folder }}
+    chmod 755 {{ run_folder }}
+    chmod 644 {{ run_folder }}/ckb.toml {{ run_folder }}/ckb-miner.toml {{ run_folder }}/specs/dev.toml
+    sed -i 's_bootnodes = \[\]_bootnodes = ["/ip4/{{ hostvars[groups.instances.0].ansible_host }}/tcp/8115/p2p/QmUsp8guKsvAGeWYoLm2J7o544MCLg3nfGNtP7TvosR5kg"]_g' {{ run_folder }}/ckb.toml
+
+    chown root:root /etc/systemd/system/ckb.service
+    chmod 644 /etc/systemd/system/ckb.service
+    systemctl daemon-reload
+  tags: ckb_service
+
+- name: Start ckb service
+  become: true
+  service:
+    name: ckb.service
+    state: started
+  tags: ckb_service
