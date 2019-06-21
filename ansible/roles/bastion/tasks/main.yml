@@ -27,3 +27,24 @@
   args:
     chdir: "{{ checkouts }}/ckb-bench"
   tags: build_ckb_bench
+
+- name: Update /etc/netdata/netdata.conf
+  become: true
+  template:
+    src: templates/netdata.conf.j2
+    dest: /etc/netdata/netdata.conf
+  tags: netdata
+
+- name: Update /etc/netdata/stream.conf
+  become: true
+  template:
+    src: templates/stream.conf.j2
+    dest: /etc/netdata/stream.conf
+  tags: netdata
+
+- name: Restart netdata service
+  become: true
+  service:
+    name: netdata
+    state: restarted
+  tags: netdata

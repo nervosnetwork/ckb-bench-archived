@@ -6,7 +6,7 @@
   shell: bash -lc "rustup toolchain install {{ rust_version }}"
   tags: common
 
-- name: Install build tools
+- name: Install common tools
   become: true
   apt:
     name:
@@ -17,6 +17,7 @@
       - libssl-dev
       - libclang-dev
       - clang
+      - netdata
     update_cache: true
   tags: common
 
