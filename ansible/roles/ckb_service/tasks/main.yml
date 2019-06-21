@@ -15,7 +15,9 @@
   tags: ckb_service
 
 - name: Start ckb as service
+  when: ckb_checkout.changed
   become: true
+  # QmUsp8guKsvAGeWYoLm2J7o544MCLg3nfGNtP7TvosR5kg is hardcoded, it's the public key of `bootnode/files/secret_key`
   shell: |
     cp {{ checkouts }}/ckb/target/release/ckb /usr/local/bin
     chown root:root /usr/local/bin/ckb
@@ -24,13 +26,10 @@
     mkdir -p {{ run_folder }}
     ckb init -C {{ run_folder }} --chain dev --force
 
-    groupadd ckb
-    useradd -g ckb --no-user-group --no-create-home --shell /usr/sbin/nologin --system ckb
-
     chown -R ckb:ckb {{ run_folder }}
     chmod 755 {{ run_folder }}
     chmod 644 {{ run_folder }}/ckb.toml {{ run_folder }}/ckb-miner.toml {{ run_folder }}/specs/dev.toml
-    sed -i 's_bootnodes = \[\]_bootnodes = ["/ip4/10.0.1.140/tcp/8115/p2p/QmUsp8guKsvAGeWYoLm2J7o544MCLg3nfGNtP7TvosR5kg"]_g' {{ run_folder }}/ckb.toml
+    sed -i 's_bootnodes = \[\]_bootnodes = ["/ip4/{{ hostvars[groups.instances.0].ansible_host }}/tcp/8115/p2p/QmUsp8guKsvAGeWYoLm2J7o544MCLg3nfGNtP7TvosR5kg"]_g' {{ run_folder }}/ckb.toml
 
     cp {{ checkouts }}/ckb/devtools/init/linux-systemd/ckb.service /etc/systemd/system/
     chown root:root /etc/systemd/system/ckb.service

@@ -36,5 +36,5 @@ terraform apply
 - Generates hosts file for ansible
 
 ```
-terraform output public_ips > ../../ansible/hosts
+terraform output ansible_hosts > ../../ansible/hosts
 ```

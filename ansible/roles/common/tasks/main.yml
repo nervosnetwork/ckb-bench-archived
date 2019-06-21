@@ -20,7 +20,14 @@
     update_cache: true
   tags: common
 
-- name: Create ckb user and group
+- name: Create ckb group
+  become: true
+  group:
+    name: ckb
+  tags: common
+
+- name: Create ckb user
+  become: true
   user:
     name: ckb
     group: ckb

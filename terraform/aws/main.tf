@@ -12,6 +12,15 @@ resource "aws_vpc" "vpc" {
     }
 }
 
+resource "aws_subnet" "subnet" {
+    vpc_id                  = "${aws_vpc.vpc.id}"
+    cidr_block              = "10.0.1.0/24"
+    map_public_ip_on_launch = true
+    tags = {
+        Name = "${var.prefix}-subnet"
+    }
+}
+
 resource "aws_internet_gateway" "ig" {
     vpc_id = "${aws_vpc.vpc.id}"
     tags = {
@@ -58,7 +67,6 @@ resource "aws_instance" "bastion" {
     vpc_security_group_ids      = ["${aws_security_group.bastion-sg.id}"]
     private_ip                  = "10.0.1.100"
     subnet_id                   = "${aws_subnet.subnet.id}"
-    associate_public_ip_address = true
 
     root_block_device {
         volume_size = "60"
@@ -79,14 +87,6 @@ resource "aws_instance" "bastion" {
 
     tags = {
         Name = "${var.prefix}-bastion"
-    }
-}
-
-resource "aws_subnet" "subnet" {
-    vpc_id                  = "${aws_vpc.vpc.id}"
-    cidr_block              = "10.0.1.0/24"
-    tags = {
-        Name = "${var.prefix}-subnet"
     }
 }
 
@@ -189,4 +189,15 @@ output "bastion_public_ip" {
 
 output "instance_private_ips" {
     value = "${join("\n", aws_instance.instance.*.private_ip)}"
+}
+
+output "ansible_hosts" {
+    value = <<ANSIBLE_HOSTS
+[bastion]
+bastion-0            ansible_host=${aws_instance.bastion.public_ip}
+
+[instances]
+bootnode-0           ansible_host=${aws_instance.bootnode.private_ip}
+${join("\n", formatlist("%s ansible_host=%s", aws_instance.instance.*.tags.Name, aws_instance.instance.*.private_ip))}
+ANSIBLE_HOSTS
 }
