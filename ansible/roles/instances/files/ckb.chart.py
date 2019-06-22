@@ -37,7 +37,7 @@ CHARTS = {
             ['txpool_pending', 'Pending', 'absolute', None, None],
             ['txpool_proposed', 'Proposed', 'absolute', None, None],
             ['txpool_total_tx_cycles', 'Total Cycles', 'absolute', None, 1000*1000],
-            ['txpool_total_tx_size', 'Total Size', 'absolute', None, 1024*1024],
+            ['txpool_total_tx_size', 'Total Size', 'absolute', None, 1000],
         ],
     },
 }

@@ -17,3 +17,10 @@
 	# Netdata is not designed to be exposed to potentially hostile
 	# networks.See https://github.com/firehol/netdata/issues/164
 	bind socket to IP = {{ netdata_bind_ip }}
+
+[plugins]
+	PATH environment variable = /usr/lib/x86_64-linux-gnu/netdata:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin
+	python.d = yes
+
+[plugin:ckb.chart]
+	update every = 2

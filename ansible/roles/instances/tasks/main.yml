@@ -59,6 +59,29 @@
     dest: /etc/netdata/stream.conf
   tags: netdata
 
+- name: Link python3 yaml package
+  become: true
+  file:
+    src: /usr/lib/python3/dist-packages/yaml
+    dest: /usr/lib/x86_64-linux-gnu/netdata/python.d/python_modules/pyyaml3
+    state: link
+  tags: netdata
+
+- name: Link python3 bin
+  become: true
+  file:
+    src: /usr/bin/python3.6
+    dest: /usr/lib/x86_64-linux-gnu/netdata/python
+    state: link
+  tags: netdata
+
+- name: Copy ckb chart plugin
+  become: true
+  copy:
+    src: files/ckb.chart.py
+    dest: /usr/lib/x86_64-linux-gnu/netdata/python.d/ckb.chart.py
+  tags: netdata
+
 - name: Restart netdata service
   become: true
   service:
