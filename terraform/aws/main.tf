@@ -76,7 +76,7 @@ resource "aws_security_group" "bastion-sg" {
 # Create a bastion instance, this instance will be used as workload generator also.
 resource "aws_instance" "bastion" {
     key_name                    = "${aws_key_pair.ssh.id}"
-    instance_type               = "${var.instance_type}"
+    instance_type               = "${var.bastion_instance_type}"
     ami                         = "${data.aws_ami.ubuntu.id}"
     vpc_security_group_ids      = ["${aws_security_group.bastion-sg.id}"]
     private_ip                  = "10.0.1.100"

@@ -15,6 +15,11 @@ variable "instance_count" {
     type = number
 }
 
+variable "bastion_instance_type" {
+    type    = string
+    default = "t2.xlarge"
+}
+
 variable "instance_type" {
     type    = string
     default = "t2.medium"
