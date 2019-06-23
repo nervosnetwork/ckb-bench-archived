@@ -18,6 +18,12 @@
 	# networks.See https://github.com/firehol/netdata/issues/164
 	bind socket to IP = {{ netdata_bind_ip }}
 
+[backend]
+	enabled = yes
+	type = opentsdb
+	data source = average
+	destination = {{ netdata_influxdb }}
+
 [plugins]
 	PATH environment variable = /usr/lib/x86_64-linux-gnu/netdata:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 	python.d = yes

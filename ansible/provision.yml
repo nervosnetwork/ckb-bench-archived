@@ -39,3 +39,4 @@
         netdata_api_key: c2028a92-d68c-4595-a5ad-1e53e5e0c27d
         netdata_bind_ip: 0.0.0.0
         netdata_master_ip: 10.0.1.100
+        netdata_influxdb: "tcp:10.0.1.100:4242"

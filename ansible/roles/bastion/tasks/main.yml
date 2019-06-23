@@ -48,3 +48,45 @@
     name: netdata
     state: restarted
   tags: netdata
+
+- name: Ensure influxdb apt key is present
+  shell: |
+    wget -qO- https://repos.influxdata.com/influxdb.key | sudo apt-key add -
+    source /etc/lsb-release
+    echo "deb https://repos.influxdata.com/${DISTRIB_ID,,} ${DISTRIB_CODENAME} stable" | sudo tee /etc/apt/sources.list.d/influxdb.list
+  tags: influxdb
+
+- name: Ensure influxdb is installed
+  become: true
+  apt:
+    name: influxdb
+    state: present
+  tags: influxdb
+
+- name: Update /etc/influxdb/influxdb.conf
+  become: true
+  template:
+    src: templates/influxdb.conf.j2
+    dest: /etc/influxdb/influxdb.conf
+  tags: influxdb
+
+- name: Restart influxdb service
+  become: true
+  service:
+    name: influxdb
+    state: restarted
+  tags: influxdb
+
+- name: Ensure grafana apt key is present
+  shell: |
+    sudo add-apt-repository "deb https://packages.grafana.com/oss/deb stable main"
+    curl https://packages.grafana.com/gpg.key | sudo apt-key add -
+    sudo apt-get update
+  tags: grafana
+
+- name: Ensure grafana is installed
+  become: true
+  apt:
+    name: grafana
+    state: present
+  tags: grafana
