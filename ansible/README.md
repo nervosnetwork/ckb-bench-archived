@@ -28,3 +28,15 @@ ansible-playbook -i hosts provision.yml
 ansible -i hosts -u ubuntu -a "sudo tc qdisc add dev eth0 root netem delay 100ms" -b instances
 ansible -i hosts -u ubuntu -a "sudo tc qdisc del dev eth0 root" -b instances
 ```
+
+## Perf
+
+- Restart ckb service and generate flamegraph
+
+```
+# start with perf on instance 1
+ansible -i hosts -u ubuntu -m script -a "roles/instances/files/ckb.service.perf.sh perf" -b instances --limit instances[1]
+
+# start without perf on instance 1
+ansible -i hosts -u ubuntu -m script -a "roles/instances/files/ckb.service.perf.sh" -b instances --limit instances[1]
+```

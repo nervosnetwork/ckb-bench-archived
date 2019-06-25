@@ -1,3 +1,10 @@
+- name: Copy ckb logrotate file
+  become: true
+  template:
+    src: templates/ckb.logrotate.j2
+    dest: /etc/logrotate.d/ckb
+  tags: ckb_service
+
 - name: Stop ckb service
   become: true
   service:

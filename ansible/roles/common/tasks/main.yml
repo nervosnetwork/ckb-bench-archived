@@ -1,11 +1,3 @@
-- name: Install rustup
-  shell: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-  tags: common
-
-- name: Install rust
-  shell: bash -lc "rustup toolchain install {{ rust_version }}"
-  tags: common
-
 - name: Install common tools
   become: true
   apt:
@@ -18,7 +10,22 @@
       - libclang-dev
       - clang
       - netdata
+      - linux-tools-aws
     update_cache: true
+  tags: common
+
+- name: Install rustup
+  shell: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+  tags: common
+
+- name: Install rust
+  shell: bash -lc "rustup toolchain install {{ rust_version }}"
+  tags: common
+
+- name: Install flamegraph
+  shell: bash -lc "command -v flamegraph >/dev/null 2>&1 || cargo install flamegraph"
+  async: 3600
+  poll: 15
   tags: common
 
 - name: Create ckb group
