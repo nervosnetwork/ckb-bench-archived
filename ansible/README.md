@@ -17,7 +17,7 @@ These are the instructions for setup.
 - In this directory, run ansible:
 
 ```
-ansible-playbook -i hosts provision.yml
+ansible-playbook -vv -i hosts provision.yml --fork 10
 ```
 
 ## TC netem

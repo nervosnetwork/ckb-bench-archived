@@ -1,5 +1,6 @@
 ---
 - hosts: all
+  strategy: free
   name: Setup common packages
   user: ubuntu
   roles:
@@ -28,6 +29,7 @@
         run_folder: /var/lib/ckb
 
 - hosts: instances
+  strategy: free
   name: Setup ckb bench instances
   user: ubuntu
   roles:

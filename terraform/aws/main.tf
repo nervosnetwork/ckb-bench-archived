@@ -45,6 +45,7 @@ resource "aws_security_group" "bastion-sg" {
     vpc_id      = "${aws_vpc.vpc.id}"
 
     ingress {
+        description = "ssh"
         from_port   = 22
         to_port     = 22
         protocol    = "tcp"
@@ -52,6 +53,15 @@ resource "aws_security_group" "bastion-sg" {
     }
 
     ingress {
+        description = "grafana web"
+        from_port   = 3000
+        to_port     = 3000
+        protocol    = "tcp"
+        cidr_blocks = ["0.0.0.0/0"]
+    }
+
+    ingress {
+        description = "netdata web"
         from_port   = 19999
         to_port     = 19999
         protocol    = "tcp"
@@ -59,6 +69,7 @@ resource "aws_security_group" "bastion-sg" {
     }
 
     ingress {
+        description = "all inbound from vpc"
         from_port   = 0
         to_port     = 0
         protocol    = "-1"
@@ -66,6 +77,7 @@ resource "aws_security_group" "bastion-sg" {
     }
 
     egress {
+        description = "all outbound to anywhere"
         from_port   = 0
         to_port     = 0
         protocol    = "-1"
