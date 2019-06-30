@@ -22,7 +22,7 @@ variable "bastion_instance_type" {
 
 variable "instance_type" {
     type    = string
-    default = "t2.medium"
+    default = "c5.large"
 }
 
 variable "public_key_path" {

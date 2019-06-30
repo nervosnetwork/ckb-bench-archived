@@ -10,7 +10,7 @@ from bases.FrameworkServices.UrlService import UrlService
 # default module values (can be overridden per job in `config`)
 update_every = 5
 priority = 60000
-retries = 60
+retries = 720
 
 # default job configuration (overridden by python.d.plugin)
 # config = {'local': {
@@ -81,8 +81,8 @@ class Service(UrlService):
             response = manager.request(method='POST',
                             url=self.url,
                             body=json.dumps(body),
-                            timeout=self.request_timeout,
-                            retries=1,
+                            timeout=10,
+                            retries=2,
                             headers=manager.headers)
 
             result = json.loads(response.data.decode('utf-8'))['result']

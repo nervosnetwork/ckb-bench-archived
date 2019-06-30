@@ -11,13 +11,17 @@
     name: ckb.service
     state: stopped
   ignore_errors: true
-  tags: ckb_service
+  tags: [ckb_service, update_ckb_service]
 
 # 10.0.1.100 is hardcoded, it's private ip of bastion
-- name: Copy ckb binary and service file from bastion
+- name: Copy ckb binary from bastion
   shell: |
     scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null 10.0.1.100:{{ checkouts }}/ckb/target/release/ckb /tmp
     sudo cp /tmp/ckb /usr/local/bin/ckb
+  tags: [ckb_service, update_ckb_service]
+
+- name: Copy ckb service file from bastion
+  shell: |
     scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null 10.0.1.100:{{ checkouts }}/ckb/devtools/init/linux-systemd/ckb.service /tmp
     sudo cp /tmp/ckb.service /etc/systemd/system/ckb.service
   tags: ckb_service
@@ -39,7 +43,12 @@
     chmod 644 {{ run_folder }}/ckb.toml {{ run_folder }}/ckb-miner.toml {{ run_folder }}/specs/dev.toml
     sed -i 's_bootnodes = \[\]_bootnodes = ["/ip4/{{ hostvars[groups.instances.0].ansible_host }}/tcp/8115/p2p/QmUsp8guKsvAGeWYoLm2J7o544MCLg3nfGNtP7TvosR5kg"]_g' {{ run_folder }}/ckb.toml
     sed -i 's_127.0.0.1:8114_0.0.0.0:8114_g' {{ run_folder }}/ckb.toml
-    sed -i 's_filter = "info"_filter = "info,ckb-network=debug,ckb-sync=debug,ckb-relay=debug,ckb-tx-pool=debug"_g' {{ run_folder }}/ckb.toml
+    # sed -i 's_filter = "info"_filter = "info,ckb-network=debug,ckb-sync=debug,ckb-relay=debug,ckb-tx-pool=debug"_g' {{ run_folder }}/ckb.toml
+    sed -i 's/log_to_stdout = true/log_to_stdout = false/g' {{ run_folder }}/ckb.toml
+    sed -i 's/max_mem_size = 2/max_mem_size = 4/g' {{ run_folder }}/ckb.toml
+    sed -i 's/max_cycles = 2/max_cycles = 4/g' {{ run_folder }}/ckb.toml
+
+    sed -i 's/1_250_000_00000000/12_500_000_00000000/g' {{ run_folder }}/specs/dev.toml
 
     chown root:root /etc/systemd/system/ckb.service
     chmod 644 /etc/systemd/system/ckb.service
@@ -51,7 +60,7 @@
   service:
     name: ckb.service
     state: started
-  tags: ckb_service
+  tags: [ckb_service, update_ckb_service]
 
 - name: Update /etc/netdata/netdata.conf
   become: true
