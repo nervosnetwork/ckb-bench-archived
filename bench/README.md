@@ -3,5 +3,5 @@
 2. Run
 
 ```
-cargo run -- --identities hello --identity=hello
+cargo run -- --config config.toml bench
 ```
