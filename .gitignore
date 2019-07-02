@@ -16,3 +16,7 @@ Cargo.lock
 ansible/provision.retry
 ansible/hosts
 tmp
+.idea/
+.data/
+data/
+target/
