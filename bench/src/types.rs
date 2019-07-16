@@ -1,13 +1,13 @@
 use crate::notify::Notifier;
 use crate::utils::privkey_from;
 use ckb_core::block::Block;
-use ckb_core::script::Script;
+use ckb_core::script::{Script, ScriptHashType};
 use ckb_core::transaction::{CellOutPoint, CellOutput, OutPoint, Transaction};
 use ckb_core::{BlockNumber, Bytes};
+use ckb_crypto::secp::{Privkey, Pubkey};
+use ckb_hash::blake2b_256;
 use ckb_util::{Mutex, MutexGuard};
-use crypto::secp::{Privkey, Pubkey};
 use failure::Error;
-use hash::blake2b_256;
 use numext_fixed_hash::{H160, H256};
 use rpc_client::Jsonrpc;
 use serde_derive::{Deserialize, Serialize};
@@ -119,6 +119,7 @@ impl Personal {
         let lock_script = Script {
             args: vec![Bytes::from(address.as_bytes())],
             code_hash: secp.code_hash(),
+            hash_type: ScriptHashType::Data,
         };
         let dep_out_point = OutPoint {
             cell: Some(secp.out_point),

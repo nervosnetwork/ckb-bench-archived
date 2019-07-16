@@ -2,9 +2,9 @@ use crate::generator::Generator;
 use crate::types::{LiveCell, Personal};
 use ckb_core::transaction::{CellInput, CellOutput, Transaction, TransactionBuilder};
 use ckb_core::Bytes;
-use hash::blake2b_256;
+use ckb_hash::blake2b_256;
+use ckb_occupied_capacity::Capacity;
 use numext_fixed_hash::H256;
-use occupied_capacity::Capacity;
 
 pub struct In2Out2;
 

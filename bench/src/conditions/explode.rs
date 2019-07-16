@@ -1,10 +1,9 @@
 use crate::types::{LiveCell, Personal, Secp, MIN_SECP_CELL_CAPACITY};
 use ckb_core::transaction::{CellInput, CellOutput, OutPoint, Transaction, TransactionBuilder};
 use ckb_core::{Bytes, Capacity};
-use hash::blake2b_256;
+use ckb_hash::blake2b_256;
 use numext_fixed_hash::H256;
 use std::vec::Vec;
-// use occupied_capacity::OccupiedCapacity;
 
 pub const MAX_EXPLODE_OUTPUTS: usize = 5000;
 

@@ -1,4 +1,4 @@
-use crypto::secp::Privkey;
+use ckb_crypto::secp::Privkey;
 use failure::{format_err, Error};
 use std::str::FromStr;
 use std::thread::sleep;
