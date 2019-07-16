@@ -20,3 +20,4 @@ tmp
 .data/
 data/
 target/
+config.toml
