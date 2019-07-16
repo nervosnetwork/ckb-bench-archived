@@ -95,8 +95,8 @@ fn solve(jsonrpc: &Jsonrpc) {
     let block_builder: BlockBuilder = template.into();
     let block = block_builder.build();
     if let Some(block_hash) = jsonrpc.submit_block(work_id.to_string(), (&block).into()) {
-        ckb_logger::debug!("submit block #{} {:#x}", block_number, block_hash);
+        ckb_logger::debug!("submit block  #{} {:#x}", block_number, block_hash);
     } else {
-        ckb_logger::debug!("submit block #{} None", block_number);
+        ckb_logger::error!("submit block  #{} None", block_number);
     }
 }

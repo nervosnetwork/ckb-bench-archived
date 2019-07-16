@@ -2,8 +2,7 @@ use crate::config::{Serial, Url};
 use crate::utils::wait_until;
 use ckb_core::transaction::Transaction;
 use ckb_core::BlockNumber;
-use ckb_logger::debug;
-use ckb_logger::info;
+use ckb_logger::{debug, info};
 use ckb_util::Mutex;
 use crossbeam_channel::{bounded, Receiver, Sender};
 use failure::Error;
@@ -47,9 +46,8 @@ pub trait Bencher {
 
             counter += 1;
             if counter == 100 {
-                debug!("benching receiver.len: {}", receiver.len());
                 counter = 0;
-                collector.stat(sleep_time, &mut misbehavior);
+                collector.stat(sleep_time, &mut misbehavior, receiver.len());
                 if let Some(duration) = self.adjust(misbehavior) {
                     info!("Adjust! new sleep time: {:?}", duration);
                     self.wait_until_ready(&receiver);
@@ -194,7 +192,7 @@ impl Collector {
         self.inner.push_back((Instant::now(), elapsed))
     }
 
-    pub fn stat(&mut self, sleep_time: Duration, misbehavior: &mut usize) {
+    pub fn stat(&mut self, sleep_time: Duration, misbehavior: &mut usize, chan_size: usize) {
         let duration = Duration::from_secs(5);
         self.inner
             .retain(|(instant, _)| instant.elapsed() <= duration);
@@ -210,8 +208,8 @@ impl Collector {
         }
 
         info!(
-            "average_tps: {}, average_elapsed: {:?}, sleep {:?}, misbehavior: {}",
-            last_tps, average_elapsed, sleep_time, misbehavior
+            "TPS: {}, Elapsed: {:?}, Sleep {:?}, Misbehavior: {}, ChanSize: {}",
+            last_tps, average_elapsed, sleep_time, misbehavior, chan_size,
         );
     }
 }
