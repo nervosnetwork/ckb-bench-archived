@@ -51,7 +51,6 @@ fn main() {
     let tip = Arc::clone(notifier.tip());
     let block_receiver = notifier.subscribe();
 
-    let _nd_client = metrics::Netdata::new(config.nd_urls.clone());
     let bank = expect_or_exit(
         Personal::init(
             config.bank.as_str(),

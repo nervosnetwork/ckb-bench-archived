@@ -2,10 +2,6 @@ use failure::Error;
 use numext_fixed_hash::H256;
 use std::time::{Duration, SystemTime};
 
-mod netdata;
-
-pub use netdata::Netdata;
-
 #[allow(dead_code)]
 pub struct Metrics {
     pub start: SystemTime,

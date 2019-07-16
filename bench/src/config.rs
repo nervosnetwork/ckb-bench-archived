@@ -22,8 +22,6 @@ pub struct Config {
     pub bank: String,
     pub alice: String,
     pub rpc_urls: Vec<Url>,
-    #[serde(default)]
-    pub nd_urls: Vec<Url>,
     pub serial: Serial,
     #[serde(rename = "miners")]
     pub miner_configs: Vec<MinerConfig>,
