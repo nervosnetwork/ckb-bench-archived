@@ -40,7 +40,7 @@ fn main() {
         _ => {
             let mut bootstrap_miner = config.miner_configs[0].clone();
             bootstrap_miner.dummy_config = DummyConfig::Constant { value: 100 };
-            let _ = miner::spawn_run(vec![bootstrap_miner], PROPOSAL_WINDOW * 10)
+            miner::spawn_run(vec![bootstrap_miner], PROPOSAL_WINDOW * 10)
                 .into_iter()
                 .for_each(|h| h.join().unwrap());
             miner::spawn_run(config.miner_configs.clone(), ::std::u64::MAX)

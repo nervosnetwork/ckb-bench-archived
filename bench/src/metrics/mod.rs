@@ -1,72 +1,82 @@
-use failure::Error;
-use numext_fixed_hash::H256;
-use std::time::{Duration, SystemTime};
+use rpc_client::Jsonrpc;
+use std::collections::VecDeque;
+use std::time::{Duration, Instant};
 
-#[allow(dead_code)]
 pub struct Metrics {
-    pub start: SystemTime,
-    pub end: SystemTime,
-    pub hashes: Vec<(H256, Duration)>,
-    pub errors: Vec<Error>,
+    total_txs_count: usize,
+    jsonrpc: Jsonrpc,
+    elapseds: VecDeque<(Instant, Duration)>,
 }
 
-#[allow(dead_code)]
 impl Metrics {
-    pub fn new() -> Self {
+    pub fn new(uri: &str, total_txs_count: usize) -> Self {
+        let jsonrpc = Jsonrpc::connect(uri).expect("connect jsonrpc");
         Self {
-            start: SystemTime::now(),
-            end: SystemTime::now(),
-            hashes: Vec::new(),
-            errors: Vec::new(),
+            total_txs_count,
+            jsonrpc,
+            elapseds: VecDeque::new(),
         }
     }
 
-    pub fn start(&mut self) {
-        self.start = SystemTime::now();
+    pub fn add_sample(&mut self, elapsed: Duration) {
+        self.elapseds.push_back((Instant::now(), elapsed))
     }
 
-    pub fn end(&mut self) {
-        self.end = SystemTime::now();
+    pub fn stat(&mut self, sleep_time: Duration, unsend: usize, misbehavior: usize) -> Duration {
+        let (pending, proposal) = self.tx_pool_info();
+        let committed = self
+            .total_txs_count
+            .saturating_sub(pending)
+            .saturating_sub(proposal);
+        ckb_logger::info!(
+            "Ready: {}, Pending: {}, Proposals: {}, Committed: {}",
+            unsend,
+            pending,
+            proposal,
+            committed,
+        );
+
+        self.prune_staled();
+        let tps = self.average_tps();
+        let latency = self.average_elapsed();
+        ckb_logger::info!(
+            "TPS: {}, Misbehavior: {}, Latency: {:?}, Sleep {:?}",
+            tps,
+            misbehavior,
+            latency,
+            sleep_time,
+        );
+
+        latency
     }
 
-    pub fn add_result(&mut self, result: Result<(H256, Duration), Error>) {
-        match result {
-            Ok((hash, elapsed)) => self.add_hash(hash, elapsed),
-            Err(err) => self.add_error(err),
-        }
+    fn tx_pool_info(&self) -> (usize, usize) {
+        let tx_pool_info = self.jsonrpc.tx_pool_info();
+        (
+            tx_pool_info.pending.0 as usize,
+            tx_pool_info.proposed.0 as usize,
+        )
     }
 
-    pub fn add_hash(&mut self, hash: H256, elapsed: Duration) {
-        self.hashes.push((hash, elapsed))
+    fn duration(&self) -> Duration {
+        Duration::from_secs(5)
     }
 
-    pub fn add_error(&mut self, error: Error) {
-        self.errors.push(error)
+    fn prune_staled(&mut self) {
+        let duration = self.duration();
+        self.elapseds
+            .retain(|(instant, _)| instant.elapsed() <= duration);
     }
 
-    pub fn elapsed(&self) -> Duration {
-        // self.end.duration_since(self.start).unwrap()
-        self.hashes.iter().map(|(_, elapsed)| *elapsed).sum()
+    fn average_elapsed(&self) -> Duration {
+        let elapseds = self
+            .elapseds
+            .iter()
+            .fold(Duration::new(0, 0), |sum, (_, elapsed)| sum + *elapsed);
+        elapseds / self.elapseds.len() as u32
     }
 
-    pub fn tps(&self) -> u128 {
-        if self.hashes.is_empty() {
-            return 0;
-        }
-
-        let total = self.elapsed();
-        let x = Duration::from_secs(1)
-            .checked_mul(self.hashes.len() as u32)
-            .unwrap()
-            .as_millis();
-        let y = total.as_millis();
-        x / y
-    }
-
-    pub fn latency(&self) -> Duration {
-        let total = self.elapsed();
-        total
-            .checked_div(self.hashes.len() as u32)
-            .unwrap_or_else(|| Duration::new(0, 0))
+    fn average_tps(&self) -> f64 {
+        self.elapseds.len() as f64 / self.duration().as_secs() as f64
     }
 }

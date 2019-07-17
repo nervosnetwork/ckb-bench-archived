@@ -36,6 +36,7 @@ jsonrpc-core = "10.1"
 jsonrpc-derive = "10.1"
 reqwest = "0.9.16"
 log = "0.4"
+lazy_static = "1.3.0"
 
 [workspace]
 members = [ "rpc-client" ]
