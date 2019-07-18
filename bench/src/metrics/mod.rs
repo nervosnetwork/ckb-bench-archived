@@ -25,13 +25,14 @@ impl Metrics {
     pub fn stat(&mut self, sleep_time: Duration, ready: usize, misbehavior: usize) -> Duration {
         let (pending, proposed) = self.tx_pool_info();
         ckb_logger::info!(
-            "Ready: {}({}%), Pending: {}({}%), Proposed: {}({}%)",
+            "Ready: {}({}%), Pending: {}({}%), Proposed: {}({}%), Total: {}",
             ready,
             ready as f32 * 100.0 / self.total_txs_count as f32,
             pending,
             pending as f32 * 100.0 / self.total_txs_count as f32,
             proposed,
             proposed as f32 * 100.0 / self.total_txs_count as f32,
+            self.total_txs_count,
         );
 
         self.prune_staled();

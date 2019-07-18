@@ -30,6 +30,7 @@ pub fn generate_transactions(
     let dep = { OutPoint::new_cell(secp.out_point().tx_hash.clone(), secp.out_point().index) };
     let mut transactions = Vec::new();
     // TODO refactor it
+    let mut bilibili = 0;
     for (_, previous) in sender.unspent().unsent_iter() {
         if targets.is_empty() {
             break;
@@ -43,10 +44,12 @@ pub fn generate_transactions(
         while let Some(mut output) = targets.pop() {
             if input_capacity.as_u64() >= output.capacity.as_u64() * 2 {
                 input_capacity = input_capacity.safe_sub(output.capacity).unwrap();
+                bilibili += 1;
                 outputs.push(output);
             } else if input_capacity.as_u64() >= output.capacity.as_u64() {
                 output.capacity = input_capacity;
                 input_capacity = Capacity::zero();
+                bilibili += 1;
                 outputs.push(output);
                 break;
             } else {
@@ -86,6 +89,7 @@ pub fn generate_transactions(
             .build();
         transactions.push(transaction);
     }
+    ckb_logger::info!("bilibili total cells: {}", bilibili);
 
     assert_eq!(targets.len(), 0, "No enough balance");
 

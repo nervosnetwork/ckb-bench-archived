@@ -53,4 +53,12 @@ impl Client {
         }
         safe.map(Into::into)
     }
+
+    pub fn get_max_tip(&self) -> BlockNumber {
+        self.ckb_nodes
+            .iter()
+            .map(Jsonrpc::get_tip_block_number)
+            .max()
+            .unwrap()
+    }
 }
