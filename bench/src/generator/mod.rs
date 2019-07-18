@@ -2,10 +2,13 @@ use crate::types::{LiveCell, Personal};
 use ckb_core::block::Block;
 use ckb_core::transaction::Transaction;
 use crossbeam_channel::{Receiver, Sender};
-pub use in2out2::In2Out2;
 use std::sync::Arc;
 
 mod in2out2;
+mod random_fee;
+
+pub use in2out2::In2Out2;
+pub use random_fee::RandomFee;
 
 pub trait Generator {
     // TODO impl IntoIterator

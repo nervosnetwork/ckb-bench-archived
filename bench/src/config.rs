@@ -27,7 +27,7 @@ pub struct Config {
     pub miner_configs: Vec<MinerConfig>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Serial {
     pub condition: Condition,
     pub transactions: usize,
@@ -37,9 +37,10 @@ pub struct Serial {
     pub adjust_misbehavior: usize,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum Condition {
     In2Out2,
+    RandomFee,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]

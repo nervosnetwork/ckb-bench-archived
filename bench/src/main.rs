@@ -28,7 +28,7 @@ fn main() {
     let _logger_guard = ckb_logger::init(config.logger.clone()).expect("init logger");
     if let Command::Mine(target) = command {
         mine_by(&config, target);
-        exit();
+        std::process::exit(0);
     }
 
     let mut notifier = expect_or_exit(Notifier::init(&config), "init notifier");
@@ -79,14 +79,14 @@ fn main() {
             sleep(Duration::from_secs(2));
         }
     };
-    ckb_logger::info!("\n\nStart synchronizing...");
+    ckb_logger::info!("\n\nStart synchronizing...\n\n");
     wait_and_mine();
 
-    ckb_logger::info!("\n\nStart preparing...");
+    ckb_logger::info!("\n\nStart preparing...\n\n");
     expect_or_exit(prepare(&config, &bank, &alice), "prepare");
     wait_and_mine();
 
-    ckb_logger::info!("\n\nStart running...");
+    ckb_logger::info!("\n\nStart running...\n\n");
     miner::spawn_run(config.miner_configs.clone(), ::std::u64::MAX);
     expect_or_exit(
         run::run(config, alice, block_receiver, notifier_tip),
