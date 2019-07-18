@@ -17,7 +17,8 @@ These are the instructions for setup.
 - In this directory, run ansible:
 
 ```
-ansible-playbook -vv -i hosts provision.yml --fork 10
+ansible-playbook -vv -i hosts provision.yml --limit bastion
+ansible-playbook -vv -i hosts provision.yml --limit instances --fork 10
 ```
 
 ## TC netem

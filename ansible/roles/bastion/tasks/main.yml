@@ -17,7 +17,7 @@
 - name: Checkout ckb-bench
   register: ckb_bench_checkout
   git:
-    repo: https://github.com/keroro520/ckb-bench
+    repo: https://github.com/nervosnetwork/ckb-bench
     dest: "{{ checkouts }}/ckb-bench"
     version: master
   tags: build_ckb_bench
@@ -25,7 +25,7 @@
 - name: Build ckb-bench
   shell: bash -lc "cargo build --release"
   args:
-    chdir: "{{ checkouts }}/ckb-bench"
+    chdir: "{{ checkouts }}/ckb-bench/bench"
   tags: build_ckb_bench
 
 - name: Update /etc/netdata/netdata.conf
