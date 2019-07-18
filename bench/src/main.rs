@@ -14,7 +14,6 @@ use types::PROPOSAL_WINDOW;
 mod bench;
 mod bencher;
 mod client;
-mod conditions;
 mod config;
 mod generator;
 mod metrics;
@@ -58,7 +57,6 @@ fn main() {
         notifier.spawn_watch(start);
     }
 
-    ckb_logger::info!("\n\nStart preparing...");
     let wait_and_mine = || {
         let client = expect_or_exit(Client::init(&config), "init client");
         let target_tip = client.get_max_tip() + PROPOSAL_WINDOW;
@@ -74,8 +72,17 @@ fn main() {
                 break;
             }
         }
+
+        let max_tip = client.get_max_tip();
+        while bank.unspent().block_number < max_tip || alice.unspent().block_number < max_tip {
+            mine_by(&config, PROPOSAL_WINDOW);
+            sleep(Duration::from_secs(2));
+        }
     };
+    ckb_logger::info!("\n\nStart synchronizing...");
     wait_and_mine();
+
+    ckb_logger::info!("\n\nStart preparing...");
     expect_or_exit(prepare(&config, &bank, &alice), "prepare");
     wait_and_mine();
 
