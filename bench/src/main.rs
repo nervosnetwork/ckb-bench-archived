@@ -1,5 +1,5 @@
 use crate::bench::prepare;
-use crate::config::{setup, Command};
+use crate::config::{setup, Command, Config};
 use crate::miner::DummyConfig;
 use crate::notify::Notifier;
 use crate::types::Personal;
@@ -31,18 +31,12 @@ fn main() {
 
     let _miner = match command {
         Command::Mine(target) => {
-            miner::spawn_run(config.miner_configs.clone(), target)
-                .into_iter()
-                .for_each(|h| h.join().unwrap());
+            mine_by(&config, target);
             exit();
             unreachable!()
         }
         _ => {
-            let mut bootstrap_miner = config.miner_configs[0].clone();
-            bootstrap_miner.dummy_config = DummyConfig::Constant { value: 100 };
-            miner::spawn_run(vec![bootstrap_miner], PROPOSAL_WINDOW * 10)
-                .into_iter()
-                .for_each(|h| h.join().unwrap());
+            mine_by(&config, PROPOSAL_WINDOW * 3);
             miner::spawn_run(config.miner_configs.clone(), ::std::u64::MAX)
         }
     };
@@ -69,11 +63,13 @@ fn main() {
     );
 
     // Start notifier to watch the CKB node, and wait for synchronizing to the tip
-    let _notifier_handler = {
+    {
         let start = min(alice.unspent().block_number, bank.unspent().block_number) + 1;
-        let handle = notifier.spawn_watch(start);
+        notifier.spawn_watch(start);
         let current_tip = { *tip.lock() };
-        let gap_number = current_tip + 1 - start;
+        let gap_number = current_tip + 1 - start + PROPOSAL_WINDOW;
+        mine_by(&config, gap_number);
+
         assert!(wait_until(
             Duration::from_millis(200) * gap_number as u32 + Duration::from_secs(10 * 60),
             || is_unspent_synced(&bank, current_tip + PROPOSAL_WINDOW)
@@ -82,13 +78,13 @@ fn main() {
             Duration::from_millis(200) * gap_number as u32 + Duration::from_secs(10 * 60),
             || is_unspent_synced(&alice, current_tip + PROPOSAL_WINDOW)
         ));
-        handle
     };
 
     match prepare(&config, &bank, &alice) {
         Ok(()) => {
             let current_tip = { *tip.lock() } + 1;
             let gap_number = current_tip - alice.unspent().block_number;
+            mine_by(&config, config.safe_window);
             assert!(wait_until(
                 Duration::from_millis(200) * gap_number as u32 + Duration::from_secs(10 * 60),
                 || is_unspent_synced(&alice, current_tip)
@@ -100,7 +96,7 @@ fn main() {
         }
     }
 
-    debug!("running...");
+    debug!("Running...");
     if let Err(err) = run::run(config, alice, block_receiver, tip) {
         error!("bench error: {:?}", err);
         exit();
@@ -108,11 +104,6 @@ fn main() {
 }
 
 fn is_unspent_synced(personal: &Personal, target_tip: BlockNumber) -> bool {
-    debug!(
-        "syncing... current_number: {}, old_tip: {}",
-        personal.unspent().block_number,
-        target_tip,
-    );
     personal.unspent().block_number >= target_tip
 }
 
@@ -130,4 +121,15 @@ fn expect_or_exit<T>(r: Result<T, Error>, message: &str) -> T {
         }
         Ok(t) => t,
     }
+}
+
+fn mine_by(config: &Config, count: u64) {
+    let bootstrap_miner = {
+        let mut bootstrap_miner = config.miner_configs[0].clone();
+        bootstrap_miner.dummy_config = DummyConfig::Constant { value: 10 };
+        bootstrap_miner
+    };
+    miner::spawn_run(vec![bootstrap_miner], count)
+        .into_iter()
+        .for_each(|h| h.join().unwrap());
 }

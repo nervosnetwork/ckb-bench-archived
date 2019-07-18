@@ -22,18 +22,16 @@ impl Metrics {
         self.elapseds.push_back((Instant::now(), elapsed))
     }
 
-    pub fn stat(&mut self, sleep_time: Duration, unsend: usize, misbehavior: usize) -> Duration {
-        let (pending, proposal) = self.tx_pool_info();
-        let committed = self
-            .total_txs_count
-            .saturating_sub(pending)
-            .saturating_sub(proposal);
+    pub fn stat(&mut self, sleep_time: Duration, ready: usize, misbehavior: usize) -> Duration {
+        let (pending, proposed) = self.tx_pool_info();
         ckb_logger::info!(
-            "Ready: {}, Pending: {}, Proposals: {}, Committed: {}",
-            unsend,
+            "Ready: {}({}%), Pending: {}({}%), Proposed: {}({}%)",
+            ready,
+            ready as f32 * 100.0 / self.total_txs_count as f32,
             pending,
-            proposal,
-            committed,
+            pending as f32 * 100.0 / self.total_txs_count as f32,
+            proposed,
+            proposed as f32 * 100.0 / self.total_txs_count as f32,
         );
 
         self.prune_staled();
