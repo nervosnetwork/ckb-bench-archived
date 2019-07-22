@@ -32,7 +32,7 @@ impl Client {
         let mut tip_number = self.ckb_nodes[0].get_tip_block_number();
         loop {
             if let Some(header) = self.get_safe_block(tip_number) {
-                return header.into();
+                return header;
             }
             tip_number -= 1;
         }
@@ -52,5 +52,13 @@ impl Client {
             }
         }
         safe.map(Into::into)
+    }
+
+    pub fn get_max_tip(&self) -> BlockNumber {
+        self.ckb_nodes
+            .iter()
+            .map(Jsonrpc::get_tip_block_number)
+            .max()
+            .unwrap()
     }
 }

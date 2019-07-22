@@ -5,10 +5,12 @@ use ckb_core::Bytes;
 use ckb_hash::blake2b_256;
 use ckb_occupied_capacity::Capacity;
 use numext_fixed_hash::H256;
+use rand::{thread_rng, Rng};
+use std::cmp::max;
 
-pub struct In2Out2;
+pub struct RandomFee;
 
-impl Generator for In2Out2 {
+impl Generator for RandomFee {
     fn generate(
         &self,
         mut live_cells: Vec<LiveCell>,
@@ -39,11 +41,20 @@ impl Generator for In2Out2 {
                     receiver.lock_script().clone(),
                     None,
                 );
-                let mut output2 = output.clone();
                 output.capacity = output.occupied_capacity().unwrap();
-                output2.capacity = input_capacities
+                let mut output2 = output.clone();
+                let fee = input_capacities
                     .safe_sub(output.capacity)
+                    .expect("input capacity is enough for 2 secp outputs")
+                    .safe_sub(output2.capacity)
                     .expect("input capacity is enough for 2 secp outputs");
+                let mut rng = thread_rng();
+                if fee != Capacity::zero() {
+                    output2.capacity = output2
+                        .capacity
+                        .safe_add(Capacity::shannons(rng.gen_range(0, max(5, fee.as_u64()))))
+                        .unwrap();
+                }
                 vec![output, output2]
             };
             let dep = sender.dep_out_point().clone();
