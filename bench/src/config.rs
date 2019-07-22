@@ -7,6 +7,7 @@ use std::fs::{create_dir_all, read_to_string};
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::time::Duration;
+use std::collections::HashMap;
 
 #[derive(PartialEq)]
 pub enum Command {
@@ -29,7 +30,7 @@ pub struct Config {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Serial {
-    pub condition: Condition,
+    pub conditions: String,
     pub transactions: usize,
     pub adjust_cycle: usize,
     pub adjust_origin: Duration,
@@ -37,7 +38,18 @@ pub struct Serial {
     pub adjust_misbehavior: usize,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+impl Serial {
+    pub fn parse_conditions(&self) -> Result<HashMap<Condition, usize>, Error> {
+        let c = serde_json::from_str(self.conditions.as_str())?;
+        Ok(c)
+    }
+
+    pub fn conditions(&self) -> HashMap<Condition, usize> {
+        self.parse_conditions().expect("check when loads config")
+    }
+}
+
+#[derive(Copy, Deserialize, Serialize, Debug, Clone, Hash, PartialEq, Eq)]
 pub enum Condition {
     In2Out2,
     RandomFee,
@@ -63,6 +75,8 @@ impl Config {
             log_dir.push("logs");
             create_dir_all(log_dir)?;
         }
+
+        config.serial.parse_conditions()?;
 
         if config.rpc_urls.is_empty() {
             return Err(format_err!("ckb_nodes is empty"));

@@ -1,8 +1,7 @@
 use crate::types::{LiveCell, Personal};
 use ckb_core::block::Block;
 use ckb_core::transaction::Transaction;
-use crossbeam_channel::{Receiver, Sender};
-use std::sync::Arc;
+use crossbeam_channel::{Sender};
 
 mod in2out2;
 mod random_fee;
@@ -22,23 +21,22 @@ pub trait Generator {
     fn serve(
         &self,
         alice: &Personal,
-        mut unspent: Vec<LiveCell>,
-        block_receiver: Receiver<Arc<Block>>,
-        tx_sender: Sender<Transaction>,
-    ) {
-        while let Ok(block) = block_receiver.recv() {
-            // Update live cell set based on new block
-            let mut live_cells = alice.live_cells(&block);
-            live_cells.extend(unspent.split_off(0));
+        unspent: Vec<LiveCell>,
+        tx_sender: &Sender<Transaction>,
+        block: &Block,
+    ) -> Vec<LiveCell> {
+        // Update live cell set based on new block
+        let mut live_cells = alice.live_cells(block);
+        live_cells.extend(unspent);
 
-            // Generate transactions based on live cell set
-            let (rest_cells, transactions) = self.generate(live_cells, alice, alice);
-            unspent = rest_cells;
+        // Generate transactions based on live cell set
+        let (rest_cells, transactions) = self.generate(live_cells, alice, alice);
 
-            // Transfer the transactions into channel
-            for transaction in transactions.into_iter() {
-                tx_sender.send(transaction).expect("insert into tx_sender")
-            }
+        // Transfer the transactions into channel
+        for transaction in transactions.into_iter() {
+            tx_sender.send(transaction).expect("insert into tx_sender")
         }
+
+        rest_cells
     }
 }
