@@ -1,7 +1,7 @@
-use crate::config::{Serial, Url};
+use crate::config::{Condition, Serial, Url};
 use crate::metrics::Metrics;
+use crate::types::TaggedTransaction;
 use crate::utils::wait_until;
-use ckb_core::transaction::Transaction;
 use ckb_core::BlockNumber;
 use ckb_logger::{debug, info};
 use ckb_util::Mutex;
@@ -28,11 +28,11 @@ pub trait Bencher {
 
     fn add_sample(&mut self, elapsed: Duration);
 
-    fn wait_until_ready(&self, receiver: &Receiver<Transaction>);
+    fn wait_until_ready(&self, receiver: &Receiver<TaggedTransaction>);
 
-    fn send_transaction(&self, transaction: Transaction);
+    fn send_transaction(&self, transaction: TaggedTransaction);
 
-    fn bench(&mut self, receiver: Receiver<Transaction>) {
+    fn bench(&mut self, receiver: Receiver<TaggedTransaction>) {
         self.wait_until_ready(&receiver);
         let mut sleep_time = self.adjust(::std::usize::MAX).unwrap();
         let mut misbehavior = 0;
@@ -85,7 +85,7 @@ pub struct DefaultBencher {
     sleep_time: Duration,
     sleep_coefficient: i32,
 
-    tx_forwarder: Sender<Transaction>,
+    tx_forwarder: Sender<TaggedTransaction>,
     metrics: Metrics,
 }
 
@@ -95,7 +95,7 @@ impl DefaultBencher {
         rpc_urls: Vec<Url>,
         current_number: Arc<Mutex<BlockNumber>>,
     ) -> Result<Self, Error> {
-        let (tx_forwarder, tx_receiver) = bounded::<Transaction>(0);
+        let (tx_forwarder, tx_receiver) = bounded::<TaggedTransaction>(0);
         rpc_urls
             .iter()
             .map(|url| Jsonrpc::connect(url.as_str()))
@@ -104,8 +104,17 @@ impl DefaultBencher {
             .for_each(|jsonrpc| {
                 let tx_receiver = tx_receiver.clone();
                 spawn(move || {
-                    while let Ok(transaction) = tx_receiver.recv() {
-                        jsonrpc.send_transaction((&transaction).into());
+                    while let Ok(tagged_transaction) = tx_receiver.recv() {
+                        let TaggedTransaction {
+                            condition,
+                            transaction,
+                        } = tagged_transaction;
+                        match condition {
+                            Condition::Unresolvable => {
+                                jsonrpc.broadcast_transaction((&transaction).into())
+                            }
+                            _ => jsonrpc.send_transaction((&transaction).into()),
+                        };
                     }
                 });
             });
@@ -180,7 +189,7 @@ impl Bencher for DefaultBencher {
         self.metrics.add_sample(elapsed)
     }
 
-    fn wait_until_ready(&self, receiver: &Receiver<Transaction>) {
+    fn wait_until_ready(&self, receiver: &Receiver<TaggedTransaction>) {
         let standard = self.serial.transactions;
         let current_number = { *self.current_number.lock() };
         let ready = wait_until(Duration::new(60 * 30, 0), || {
@@ -199,7 +208,7 @@ impl Bencher for DefaultBencher {
         );
     }
 
-    fn send_transaction(&self, transaction: Transaction) {
+    fn send_transaction(&self, transaction: TaggedTransaction) {
         self.tx_forwarder
             .send(transaction)
             .expect("push transaction");

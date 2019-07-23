@@ -6,7 +6,7 @@ safe_window = 10
 # block reward to provide `alice` run benchmarks.
 #
 # NOTE: We should ensure the ckb-miner is same as we configurated here.
-miner = "<miner-private-key>"
+bank  = "<miner-private-key>"
 alice = "<miner-private-key>"
 
 # The rpc urls of ckb node

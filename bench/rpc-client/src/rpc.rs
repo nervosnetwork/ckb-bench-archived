@@ -171,6 +171,14 @@ impl Jsonrpc {
             .expect("rpc call send_transaction")
     }
 
+    pub fn broadcast_transaction(&self, tx: Transaction) -> H256 {
+        self.inner
+            .lock()
+            .broadcast_transaction(tx)
+            .call()
+            .expect("rpc call send_transaction")
+    }
+
     pub fn send_transaction_result(&self, tx: Transaction) -> JsonRpcResult<H256> {
         self.inner.lock().send_transaction(tx).call()
     }
@@ -237,6 +245,7 @@ jsonrpc_client!(pub struct Inner {
     pub fn compute_transaction_hash(&mut self, tx: Transaction) -> RpcRequest<H256>;
     pub fn dry_run_transaction(&mut self, _tx: Transaction) -> RpcRequest<DryRunResult>;
     pub fn send_transaction(&mut self, tx: Transaction) -> RpcRequest<H256>;
+    pub fn broadcast_transaction(&mut self, tx: Transaction) -> RpcRequest<H256>;
     pub fn tx_pool_info(&mut self) -> RpcRequest<TxPoolInfo>;
 
     pub fn add_node(&mut self, peer_id: String, address: String) -> RpcRequest<()>;

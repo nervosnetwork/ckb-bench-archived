@@ -1,3 +1,4 @@
+use crate::config::Condition;
 use crate::notify::Notifier;
 use crate::utils::privkey_from;
 use ckb_core::block::Block;
@@ -19,6 +20,11 @@ use std::thread::{spawn, JoinHandle};
 pub const MIN_SECP_CELL_CAPACITY: u64 = 60_0000_0000;
 pub const CELLBASE_MATURITY: u64 = 10;
 pub const PROPOSAL_WINDOW: u64 = 10;
+
+pub struct TaggedTransaction {
+    pub condition: Condition,
+    pub transaction: Transaction,
+}
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct LiveCell {
@@ -233,6 +239,7 @@ impl Personal {
         deads
     }
 
+    // Return the owned output cells within the given block
     pub fn live_cells(&self, block: &Block) -> Vec<LiveCell> {
         let lock_hash = self.lock_script().hash();
         let mut lives = Vec::new();

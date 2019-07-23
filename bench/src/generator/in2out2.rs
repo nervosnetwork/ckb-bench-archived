@@ -1,10 +1,9 @@
-use crate::generator::Generator;
-use crate::types::{LiveCell, Personal};
-use ckb_core::transaction::{CellInput, CellOutput, Transaction, TransactionBuilder};
+use crate::config::Condition;
+use crate::generator::{construct_inputs, sign_transaction, Generator};
+use crate::types::{LiveCell, Personal, TaggedTransaction};
+use ckb_core::transaction::{CellOutput, TransactionBuilder};
 use ckb_core::Bytes;
-use ckb_hash::blake2b_256;
 use ckb_occupied_capacity::Capacity;
-use numext_fixed_hash::H256;
 
 pub struct In2Out2;
 
@@ -14,24 +13,11 @@ impl Generator for In2Out2 {
         mut live_cells: Vec<LiveCell>,
         sender: &Personal,
         receiver: &Personal,
-    ) -> (Vec<LiveCell>, Vec<Transaction>) {
-        let rest_cells = if live_cells.len() % 2 == 1 {
-            vec![live_cells.pop().unwrap()]
-        } else {
-            vec![]
-        };
-
+    ) -> (Vec<LiveCell>, Vec<TaggedTransaction>) {
         let mut transactions = Vec::new();
-        while !live_cells.is_empty() {
+        while live_cells.len() >= 2 {
             let input_cells: Vec<_> = (0..2).map(|_| live_cells.pop().unwrap()).collect();
-            let input_capacities = input_cells.iter().fold(Capacity::zero(), |sum, c| {
-                sum.safe_add(c.cell_output.capacity)
-                    .expect("sum input capacities")
-            });
-            let inputs: Vec<_> = input_cells
-                .into_iter()
-                .map(|c| CellInput::new(c.out_point, 0))
-                .collect();
+            let (inputs, input_capacities) = construct_inputs(input_cells);
             let outputs = {
                 let mut output = CellOutput::new(
                     Capacity::zero(),
@@ -46,28 +32,23 @@ impl Generator for In2Out2 {
                     .expect("input capacity is enough for 2 secp outputs");
                 vec![output, output2]
             };
-            let dep = sender.dep_out_point().clone();
             let raw_transaction = TransactionBuilder::default()
                 .inputs(inputs)
                 .outputs(outputs)
-                .dep(dep)
+                .dep(sender.dep_out_point().clone())
                 .build();
-            let witness = {
-                let message = H256::from(blake2b_256(raw_transaction.hash()));
-                let signature_bytes = sender
-                    .privkey()
-                    .sign_recoverable(&message)
-                    .unwrap()
-                    .serialize();
-                vec![Bytes::from(signature_bytes)]
-            };
-            let witnesses = vec![witness.clone(), witness];
-            let transaction = TransactionBuilder::from_transaction(raw_transaction)
-                .witnesses(witnesses)
-                .build();
+            let transaction = sign_transaction(raw_transaction, sender);
             transactions.push(transaction);
         }
+        let condition = Condition::In2Out2;
+        let transactions = transactions
+            .into_iter()
+            .map(|transaction| TaggedTransaction {
+                condition,
+                transaction,
+            })
+            .collect();
 
-        (rest_cells, transactions)
+        (live_cells, transactions)
     }
 }

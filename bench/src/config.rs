@@ -3,11 +3,11 @@ use clap::{App, Arg, SubCommand};
 use failure::{format_err, Error};
 use serde_derive::{Deserialize, Serialize};
 use std::clone::Clone;
+use std::collections::HashMap;
 use std::fs::{create_dir_all, read_to_string};
-use std::ops::Deref;
+use std::ops::{Deref, Range};
 use std::path::PathBuf;
 use std::time::Duration;
-use std::collections::HashMap;
 
 #[derive(PartialEq)]
 pub enum Command {
@@ -44,8 +44,16 @@ impl Serial {
         Ok(c)
     }
 
-    pub fn conditions(&self) -> HashMap<Condition, usize> {
-        self.parse_conditions().expect("check when loads config")
+    pub fn conditions(&self) -> HashMap<Condition, Range<usize>> {
+        let conditions = self.parse_conditions().expect("check when loads config");
+        let mut sum = 0;
+        conditions
+            .into_iter()
+            .map(|(condition, sg)| {
+                sum += sg;
+                (condition, sum - sg..sum)
+            })
+            .collect()
     }
 }
 
@@ -53,6 +61,7 @@ impl Serial {
 pub enum Condition {
     In2Out2,
     RandomFee,
+    Unresolvable,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]

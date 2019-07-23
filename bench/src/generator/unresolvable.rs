@@ -1,15 +1,15 @@
 use crate::config::Condition;
 use crate::generator::{construct_inputs, sign_transaction, Generator};
 use crate::types::{LiveCell, Personal, TaggedTransaction};
+use ckb_core::block::Block;
 use ckb_core::transaction::{CellOutput, TransactionBuilder};
 use ckb_core::Bytes;
 use ckb_occupied_capacity::Capacity;
-use rand::{thread_rng, Rng};
-use std::cmp::max;
+use crossbeam_channel::Sender;
 
-pub struct RandomFee;
+pub struct Unresolvable;
 
-impl Generator for RandomFee {
+impl Generator for Unresolvable {
     fn generate(
         &self,
         mut live_cells: Vec<LiveCell>,
@@ -27,22 +27,15 @@ impl Generator for RandomFee {
                     receiver.lock_script().clone(),
                     None,
                 );
-                output.capacity = output.occupied_capacity().unwrap();
                 let mut output2 = output.clone();
-                let fee = input_capacities
+                output.capacity = output.occupied_capacity().unwrap();
+                output2.capacity = input_capacities
                     .safe_sub(output.capacity)
-                    .expect("input capacity is enough for 2 secp outputs")
-                    .safe_sub(output2.capacity)
                     .expect("input capacity is enough for 2 secp outputs");
-                let mut rng = thread_rng();
-                if fee != Capacity::zero() {
-                    output2.capacity = output2
-                        .capacity
-                        .safe_add(Capacity::shannons(rng.gen_range(0, max(5, fee.as_u64()))))
-                        .unwrap();
-                }
                 vec![output, output2]
             };
+
+            // Construct a transaction with duplicated input-cells
             let raw_transaction = TransactionBuilder::default()
                 .inputs(inputs)
                 .outputs(outputs)
@@ -51,7 +44,7 @@ impl Generator for RandomFee {
             let transaction = sign_transaction(raw_transaction, sender);
             transactions.push(transaction);
         }
-        let condition = Condition::RandomFee;
+        let condition = Condition::Unresolvable;
         let transactions = transactions
             .into_iter()
             .map(|transaction| TaggedTransaction {
@@ -61,5 +54,27 @@ impl Generator for RandomFee {
             .collect();
 
         (live_cells, transactions)
+    }
+
+    fn serve(
+        &self,
+        alice: &Personal,
+        unspent: Vec<LiveCell>,
+        tx_sender: &Sender<TaggedTransaction>,
+        block: &Block,
+    ) -> Vec<LiveCell> {
+        // Update live cell set based on new block
+        let mut new_unspent_cells = alice.live_cells(block);
+        new_unspent_cells.extend(unspent);
+
+        // Generate transactions based on live cell set
+        let (_, transactions) = self.generate(new_unspent_cells.clone(), alice, alice);
+
+        // Transfer the transactions into channel
+        for transaction in transactions.into_iter() {
+            tx_sender.send(transaction).expect("insert into tx_sender")
+        }
+
+        new_unspent_cells
     }
 }
