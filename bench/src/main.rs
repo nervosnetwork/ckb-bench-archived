@@ -111,6 +111,10 @@ fn expect_or_exit<T>(r: Result<T, Error>, message: &str) -> T {
 }
 
 fn mine_by(config: &Config, count: u64) {
+    if config.miner_configs.is_empty() {
+        return;
+    }
+
     let bootstrap_miner = {
         let mut bootstrap_miner = config.miner_configs[0].clone();
         bootstrap_miner.dummy_config = DummyConfig::Constant { value: 10 };
