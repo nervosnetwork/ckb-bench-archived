@@ -41,7 +41,8 @@ impl Client {
     pub fn get_safe_block(&self, block_number: BlockNumber) -> Option<Header> {
         let mut safe = None;
         for jsonrpc in self.ckb_nodes.iter() {
-            if let Some(header) = jsonrpc.get_header_by_number(block_number) {
+            if let Some(block) = jsonrpc.get_block_by_number(block_number) {
+                let header = block.header.clone();
                 if safe.is_none() {
                     safe = Some(header);
                 } else if safe.as_ref().map(|b| b != &header).unwrap() {

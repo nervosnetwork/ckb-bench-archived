@@ -2,7 +2,7 @@ use crate::config::Condition;
 use crate::notify::Notifier;
 use crate::utils::privkey_from;
 use ckb_core::block::Block;
-use ckb_core::script::{Script, ScriptHashType};
+use ckb_core::script::Script;
 use ckb_core::transaction::{CellOutPoint, CellOutput, OutPoint, Transaction};
 use ckb_core::{BlockNumber, Bytes};
 use ckb_crypto::secp::{Privkey, Pubkey};
@@ -19,7 +19,6 @@ use std::thread::{spawn, JoinHandle};
 
 pub const MIN_SECP_CELL_CAPACITY: u64 = 60_0000_0000;
 pub const CELLBASE_MATURITY: u64 = 10;
-pub const PROPOSAL_WINDOW: u64 = 10;
 
 pub struct TaggedTransaction {
     pub condition: Condition,
@@ -125,7 +124,6 @@ impl Personal {
         let lock_script = Script {
             args: vec![Bytes::from(address.as_bytes())],
             code_hash: secp.code_hash(),
-            hash_type: ScriptHashType::Data,
         };
         let dep_out_point = OutPoint {
             cell: Some(secp.out_point),
