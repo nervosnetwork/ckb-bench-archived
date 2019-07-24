@@ -1,5 +1,6 @@
 basedir = "data/"
 safe_window = 10
+proposal_window = 10
 
 # If we wanna generate inifite transactions so that bench can run infinitely,
 # we can let the `miner` and `alice` be the same acount and miner mines new

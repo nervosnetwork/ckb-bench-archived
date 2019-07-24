@@ -19,6 +19,7 @@ pub enum Command {
 pub struct Config {
     pub basedir: PathBuf,
     pub safe_window: u64,
+    pub proposal_window: u64,
     pub logger: ckb_logger::Config,
     pub bank: String,
     pub alice: String,

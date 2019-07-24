@@ -1,5 +1,6 @@
 basedir = "data/"
 safe_window = 10
+proposal_window = 10
 
 bank = "<bank private key>"
 alice = "<alice private key>"

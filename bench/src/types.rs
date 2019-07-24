@@ -19,7 +19,6 @@ use std::thread::{spawn, JoinHandle};
 
 pub const MIN_SECP_CELL_CAPACITY: u64 = 60_0000_0000;
 pub const CELLBASE_MATURITY: u64 = 10;
-pub const PROPOSAL_WINDOW: u64 = 10;
 
 pub struct TaggedTransaction {
     pub condition: Condition,
