@@ -6,9 +6,11 @@ use ckb_jsonrpc_types::{
 };
 use ckb_util::Mutex;
 use failure::{format_err, Error};
+use hyper::header::{Authorization, Basic};
 use jsonrpc_client_core::{expand_params, jsonrpc_client, Result as JsonRpcResult};
 use jsonrpc_client_http::{HttpHandle, HttpTransport};
 use numext_fixed_hash::H256;
+use std::env::var;
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -17,14 +19,30 @@ pub struct Jsonrpc {
     inner: Arc<Mutex<Inner<HttpHandle>>>,
 }
 
+pub fn username() -> String {
+    var("CKB_STAGING_USERNAME").unwrap_or_else(|_| "".to_owned())
+}
+
+pub fn password() -> String {
+    var("CKB_STAGING_PASSWORD").unwrap_or_else(|_| "".to_owned())
+}
+
 impl Jsonrpc {
     pub fn connect(uri: &str) -> Result<Self, Error> {
         let transport = HttpTransport::new().standalone().unwrap();
         match transport.handle(uri) {
-            Ok(transport) => Ok(Self {
-                uri: uri.to_string(),
-                inner: Arc::new(Mutex::new(Inner::new(transport))),
-            }),
+            Ok(mut transport) => {
+                if !username().is_empty() && !password().is_empty() {
+                    transport.set_header(Authorization(Basic {
+                        username: username(),
+                        password: Some(password()),
+                    }));
+                }
+                Ok(Self {
+                    uri: uri.to_string(),
+                    inner: Arc::new(Mutex::new(Inner::new(transport))),
+                })
+            }
             Err(err) => Err(format_err!("{}", err)),
         }
     }
