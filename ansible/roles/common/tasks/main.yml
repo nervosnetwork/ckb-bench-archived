@@ -65,3 +65,17 @@
     - "{{ groups['bastion'] }}"
     - "{{ groups['instances'] }}"
   tags: exchange_keys
+
+- name: Copy network tuning conf
+  become: true
+  copy:
+    src: files/99-network-tuning.conf
+    dest: "/etc/sysctl.d/"
+    owner: root
+    group: root
+  tags: network_tuning
+
+- name: Apply network tuning conf
+  become: true
+  shell: "sysctl -p /etc/sysctl.d/99-network-tuning.conf"
+  tags: network_tuning
