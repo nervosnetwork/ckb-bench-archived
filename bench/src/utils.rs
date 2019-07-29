@@ -1,4 +1,4 @@
-use crypto::secp::Privkey;
+use ckb_crypto::secp::Privkey;
 use failure::{format_err, Error};
 use std::str::FromStr;
 use std::thread::sleep;
@@ -20,7 +20,7 @@ where
 {
     let start = Instant::now();
     while !f() && start.elapsed() <= timeout {
-        sleep(Duration::new(1, 0));
+        sleep(Duration::new(2, 0));
     }
 
     start.elapsed() < timeout

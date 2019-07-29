@@ -1,11 +1,11 @@
 basedir = "data/"
 safe_window = 10
+proposal_window = 10
 
 bank = "<bank private key>"
 alice = "<alice private key>"
 
 rpc_urls = [ "http://127.0.0.1:8114/" ]
-nd_urls = []
 
 [logger]
 filter = "info,ckb-bench=debug"

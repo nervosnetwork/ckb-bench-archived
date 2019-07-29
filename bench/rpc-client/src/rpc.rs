@@ -1,14 +1,16 @@
 use ckb_core::{BlockNumber as CoreBlockNumber, Version as CoreVersion};
-use ckb_util::Mutex;
-use failure::{format_err, Error};
-use jsonrpc_client_core::{expand_params, jsonrpc_client, Result as JsonRpcResult};
-use jsonrpc_client_http::{HttpHandle, HttpTransport};
-use jsonrpc_types::{
+use ckb_jsonrpc_types::{
     Block, BlockNumber, BlockTemplate, BlockView, CellOutputWithOutPoint, CellWithStatus,
     ChainInfo, DryRunResult, HeaderView, Node, OutPoint, PeerState, Transaction,
     TransactionWithStatus, TxPoolInfo, Unsigned, Version,
 };
+use ckb_util::Mutex;
+use failure::{format_err, Error};
+use hyper::header::{Authorization, Basic};
+use jsonrpc_client_core::{expand_params, jsonrpc_client, Result as JsonRpcResult};
+use jsonrpc_client_http::{HttpHandle, HttpTransport};
 use numext_fixed_hash::H256;
+use std::env::var;
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -17,14 +19,30 @@ pub struct Jsonrpc {
     inner: Arc<Mutex<Inner<HttpHandle>>>,
 }
 
+pub fn username() -> String {
+    var("CKB_STAGING_USERNAME").unwrap_or_else(|_| "".to_owned())
+}
+
+pub fn password() -> String {
+    var("CKB_STAGING_PASSWORD").unwrap_or_else(|_| "".to_owned())
+}
+
 impl Jsonrpc {
     pub fn connect(uri: &str) -> Result<Self, Error> {
         let transport = HttpTransport::new().standalone().unwrap();
         match transport.handle(uri) {
-            Ok(transport) => Ok(Self {
-                uri: uri.to_string(),
-                inner: Arc::new(Mutex::new(Inner::new(transport))),
-            }),
+            Ok(mut transport) => {
+                if !username().is_empty() && !password().is_empty() {
+                    transport.set_header(Authorization(Basic {
+                        username: username(),
+                        password: Some(password()),
+                    }));
+                }
+                Ok(Self {
+                    uri: uri.to_string(),
+                    inner: Arc::new(Mutex::new(Inner::new(transport))),
+                })
+            }
             Err(err) => Err(format_err!("{}", err)),
         }
     }
@@ -171,6 +189,14 @@ impl Jsonrpc {
             .expect("rpc call send_transaction")
     }
 
+    pub fn broadcast_transaction(&self, tx: Transaction) -> H256 {
+        self.inner
+            .lock()
+            .broadcast_transaction(tx)
+            .call()
+            .expect("rpc call send_transaction")
+    }
+
     pub fn send_transaction_result(&self, tx: Transaction) -> JsonRpcResult<H256> {
         self.inner.lock().send_transaction(tx).call()
     }
@@ -237,6 +263,7 @@ jsonrpc_client!(pub struct Inner {
     pub fn compute_transaction_hash(&mut self, tx: Transaction) -> RpcRequest<H256>;
     pub fn dry_run_transaction(&mut self, _tx: Transaction) -> RpcRequest<DryRunResult>;
     pub fn send_transaction(&mut self, tx: Transaction) -> RpcRequest<H256>;
+    pub fn broadcast_transaction(&mut self, tx: Transaction) -> RpcRequest<H256>;
     pub fn tx_pool_info(&mut self) -> RpcRequest<TxPoolInfo>;
 
     pub fn add_node(&mut self, peer_id: String, address: String) -> RpcRequest<()>;

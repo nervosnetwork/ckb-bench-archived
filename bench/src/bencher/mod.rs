@@ -1,60 +1,76 @@
-use crate::config::{Serial, Url};
+use crate::config::{Condition, Serial, Url};
+use crate::metrics::Metrics;
+use crate::types::TaggedTransaction;
 use crate::utils::wait_until;
-use ckb_core::transaction::Transaction;
 use ckb_core::BlockNumber;
-use ckb_logger::debug;
-use ckb_logger::info;
+use ckb_logger::{debug, info};
 use ckb_util::Mutex;
 use crossbeam_channel::{bounded, Receiver, Sender};
 use failure::Error;
+use lazy_static::lazy_static;
 use rpc_client::Jsonrpc;
 use std::cmp::{max, min};
-use std::collections::VecDeque;
 use std::sync::Arc;
-use std::thread::{sleep, spawn, JoinHandle};
+use std::thread::{sleep, spawn};
 use std::time::{Duration, Instant};
 
-const DANGER_SEND_MS: u64 = 200; // ms
+lazy_static! {
+    static ref LONG_SENDING_LATENCY: Duration = Duration::from_millis(200);
+    static ref ESTIMATE_PERIOD: Duration = Duration::from_secs(5);
+    static ref LONG_SENDING_PUNISH: usize = 5;
+    static ref EMPTY_SENDING_PUNISH: usize = 30;
+}
 
 pub trait Bencher {
     fn adjust(&mut self, misbehavior: usize) -> Option<Duration>;
 
-    fn wait_until_ready(&self, receiver: &Receiver<Transaction>);
+    fn stat(&mut self, sleep_time: Duration, unsend: usize, misbehavior: usize) -> Duration;
 
-    fn send_transaction(&self, transaction: Transaction);
+    fn add_sample(&mut self, elapsed: Duration);
 
-    fn bench(&mut self, receiver: Receiver<Transaction>) {
-        let mut counter = 0;
-        let mut misbehavior = 0;
-        let mut collector = Collector::default();
-        let mut sleep_time = self.adjust(::std::usize::MAX).unwrap();
+    fn wait_until_ready(&self, receiver: &Receiver<TaggedTransaction>);
+
+    fn send_transaction(&self, transaction: TaggedTransaction);
+
+    fn bench(&mut self, receiver: Receiver<TaggedTransaction>) {
         self.wait_until_ready(&receiver);
+        let mut sleep_time = self.adjust(::std::usize::MAX).unwrap();
+        let mut misbehavior = 0;
+        let mut ticker = Instant::now();
         loop {
             let transaction = {
                 if let Ok(transaction) = receiver.try_recv() {
                     transaction
                 } else {
-                    misbehavior += 30;
+                    misbehavior += *EMPTY_SENDING_PUNISH;
                     receiver.recv().unwrap()
                 }
             };
 
-            sleep(sleep_time);
-            let send_start = Instant::now();
-            self.send_transaction(transaction);
-            let elapsed = send_start.elapsed();
-            collector.add_one(elapsed);
+            let elapsed = {
+                sleep(sleep_time);
+                let send_start = Instant::now();
+                self.send_transaction(transaction);
+                send_start.elapsed()
+            };
+            self.add_sample(elapsed);
 
-            counter += 1;
-            if counter == 100 {
-                debug!("benching receiver.len: {}", receiver.len());
-                counter = 0;
-                collector.stat(sleep_time, &mut misbehavior);
-                if let Some(duration) = self.adjust(misbehavior) {
-                    info!("Adjust! new sleep time: {:?}", duration);
+            if ticker.elapsed() >= *ESTIMATE_PERIOD {
+                ticker = Instant::now();
+
+                let latency = self.stat(sleep_time, receiver.len(), misbehavior);
+                if latency > *LONG_SENDING_LATENCY {
+                    misbehavior += *LONG_SENDING_PUNISH;
+                }
+
+                if let Some(new_sleep_time) = self.adjust(misbehavior) {
+                    info!(
+                        "Adjust sleep time from: {:?} to {:?}",
+                        sleep_time, new_sleep_time
+                    );
                     self.wait_until_ready(&receiver);
+                    sleep_time = new_sleep_time;
                     misbehavior = 0;
-                    sleep_time = duration;
                 }
             }
         }
@@ -69,8 +85,8 @@ pub struct DefaultBencher {
     sleep_time: Duration,
     sleep_coefficient: i32,
 
-    tx_forwarder: Sender<Transaction>,
-    _handlers: Vec<JoinHandle<()>>,
+    tx_forwarder: Sender<TaggedTransaction>,
+    metrics: Metrics,
 }
 
 impl DefaultBencher {
@@ -79,25 +95,33 @@ impl DefaultBencher {
         rpc_urls: Vec<Url>,
         current_number: Arc<Mutex<BlockNumber>>,
     ) -> Result<Self, Error> {
-        let last_adjust_number = { *current_number.lock() };
-        let sleep_time = serial.adjust_origin;
-        let (tx_forwarder, tx_receiver) = bounded::<Transaction>(0);
-        let jsonrpcs: Vec<Jsonrpc> = rpc_urls
+        let (tx_forwarder, tx_receiver) = bounded::<TaggedTransaction>(0);
+        rpc_urls
             .iter()
             .map(|url| Jsonrpc::connect(url.as_str()))
-            .collect::<Result<_, Error>>()?;
-        let handlers: Vec<JoinHandle<()>> = jsonrpcs
+            .collect::<Result<Vec<_>, Error>>()?
             .into_iter()
-            .map(|jsonrpc| {
+            .for_each(|jsonrpc| {
                 let tx_receiver = tx_receiver.clone();
                 spawn(move || {
-                    while let Ok(transaction) = tx_receiver.recv() {
-                        jsonrpc.send_transaction((&transaction).into());
+                    while let Ok(tagged_transaction) = tx_receiver.recv() {
+                        let TaggedTransaction {
+                            condition,
+                            transaction,
+                        } = tagged_transaction;
+                        match condition {
+                            Condition::Unresolvable => {
+                                jsonrpc.broadcast_transaction((&transaction).into())
+                            }
+                            _ => jsonrpc.send_transaction((&transaction).into()),
+                        };
                     }
-                })
-            })
-            .collect();
+                });
+            });
 
+        let last_adjust_number = { *current_number.lock() };
+        let sleep_time = serial.adjust_origin;
+        let metrics = Metrics::new(rpc_urls[0].as_str(), serial.transactions);
         Ok(Self {
             serial,
             last_adjust_number,
@@ -105,7 +129,7 @@ impl DefaultBencher {
             sleep_time,
             sleep_coefficient: -1,
             tx_forwarder,
-            _handlers: handlers,
+            metrics,
         })
     }
 
@@ -157,7 +181,15 @@ impl Bencher for DefaultBencher {
         }
     }
 
-    fn wait_until_ready(&self, receiver: &Receiver<Transaction>) {
+    fn stat(&mut self, sleep_time: Duration, unsend: usize, misbehavior: usize) -> Duration {
+        self.metrics.stat(sleep_time, unsend, misbehavior)
+    }
+
+    fn add_sample(&mut self, elapsed: Duration) {
+        self.metrics.add_sample(elapsed)
+    }
+
+    fn wait_until_ready(&self, receiver: &Receiver<TaggedTransaction>) {
         let standard = self.serial.transactions;
         let current_number = { *self.current_number.lock() };
         let ready = wait_until(Duration::new(60 * 30, 0), || {
@@ -176,42 +208,9 @@ impl Bencher for DefaultBencher {
         );
     }
 
-    fn send_transaction(&self, transaction: Transaction) {
+    fn send_transaction(&self, transaction: TaggedTransaction) {
         self.tx_forwarder
             .send(transaction)
             .expect("push transaction");
-    }
-}
-
-// FIXME Too dirty, remove it
-#[derive(Default)]
-pub struct Collector {
-    inner: VecDeque<(Instant, Duration)>,
-}
-
-impl Collector {
-    pub fn add_one(&mut self, elapsed: Duration) {
-        self.inner.push_back((Instant::now(), elapsed))
-    }
-
-    pub fn stat(&mut self, sleep_time: Duration, misbehavior: &mut usize) {
-        let duration = Duration::from_secs(5);
-        self.inner
-            .retain(|(instant, _)| instant.elapsed() <= duration);
-        let last_tps = self.inner.len() as f64 / duration.as_secs() as f64;
-        let elapseds = self
-            .inner
-            .iter()
-            .fold(Duration::new(0, 0), |sum, (_, elapsed)| sum + *elapsed);
-        let average_elapsed = elapseds / self.inner.len() as u32;
-
-        if average_elapsed > Duration::from_millis(DANGER_SEND_MS) {
-            *misbehavior += 5;
-        }
-
-        info!(
-            "average_tps: {}, average_elapsed: {:?}, sleep {:?}, misbehavior: {}",
-            last_tps, average_elapsed, sleep_time, misbehavior
-        );
     }
 }

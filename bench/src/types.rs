@@ -1,13 +1,14 @@
+use crate::config::Condition;
 use crate::notify::Notifier;
 use crate::utils::privkey_from;
 use ckb_core::block::Block;
 use ckb_core::script::{Script, ScriptHashType};
 use ckb_core::transaction::{CellOutPoint, CellOutput, OutPoint, Transaction};
 use ckb_core::{BlockNumber, Bytes};
+use ckb_crypto::secp::{Privkey, Pubkey};
+use ckb_hash::blake2b_256;
 use ckb_util::{Mutex, MutexGuard};
-use crypto::secp::{Privkey, Pubkey};
 use failure::Error;
-use hash::blake2b_256;
 use numext_fixed_hash::{H160, H256};
 use rpc_client::Jsonrpc;
 use serde_derive::{Deserialize, Serialize};
@@ -18,7 +19,11 @@ use std::thread::{spawn, JoinHandle};
 
 pub const MIN_SECP_CELL_CAPACITY: u64 = 60_0000_0000;
 pub const CELLBASE_MATURITY: u64 = 10;
-pub const PROPOSAL_WINDOW: u64 = 10;
+
+pub struct TaggedTransaction {
+    pub condition: Condition,
+    pub transaction: Transaction,
+}
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct LiveCell {
@@ -233,6 +238,7 @@ impl Personal {
         deads
     }
 
+    // Return the owned output cells within the given block
     pub fn live_cells(&self, block: &Block) -> Vec<LiveCell> {
         let lock_hash = self.lock_script().hash();
         let mut lives = Vec::new();

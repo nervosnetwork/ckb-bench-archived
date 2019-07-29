@@ -2,7 +2,7 @@ use crate::client::Client;
 use crate::config::Config;
 use ckb_core::block::Block;
 use ckb_core::BlockNumber;
-use ckb_logger::info;
+use ckb_logger::debug;
 use ckb_util::Mutex;
 use crossbeam_channel::{Receiver, Sender};
 use failure::Error;
@@ -77,8 +77,8 @@ impl Notifier {
                     .get_block_by_number(current)
                     .expect("safe checked")
                     .into();
-                info!(
-                    "publish block {} {:#x}, contains {} transactions",
+                debug!(
+                    "publish block #{} {:#x}, contains {} transactions",
                     block.header().number(),
                     block.header().hash(),
                     block.transactions().len(),
