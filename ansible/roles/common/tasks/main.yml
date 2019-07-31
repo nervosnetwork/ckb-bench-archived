@@ -60,7 +60,7 @@
     user: ubuntu
     state: present
     key: "{{ lookup('file','tmp/{{ hostvars[item].ansible_host }}-id_rsa.pub')}}"
-  when: hostvars[item].ansible_host != ansible_host
+  when: hostvars[item].ansible_host != ansible_host and (ansible_host == hostvars[groups.bastion.0].ansible_host or hostvars[item].ansible_host == hostvars[groups.bastion.0].ansible_host)
   with_items:
     - "{{ groups['bastion'] }}"
     - "{{ groups['instances'] }}"

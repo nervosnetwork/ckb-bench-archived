@@ -1,6 +1,5 @@
 ---
 - hosts: all
-  strategy: free
   name: Setup common packages
   user: ubuntu
   roles:

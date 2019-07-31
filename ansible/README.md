@@ -19,8 +19,6 @@ These are the instructions for setup.
 ```
 # setup bastion
 ansible-playbook -vv -i hosts provision.yml --limit bastion
-# exchange ssh keys
-ansible-playbook -vv -i hosts provision.yml --tags exchange_keys
 # setup instances
 ansible-playbook -vv -i hosts provision.yml --limit instances --fork 10
 ```
