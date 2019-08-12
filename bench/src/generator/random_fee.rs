@@ -5,7 +5,7 @@ use ckb_core::transaction::{CellOutput, TransactionBuilder};
 use ckb_core::Bytes;
 use ckb_occupied_capacity::Capacity;
 use rand::{thread_rng, Rng};
-use std::cmp::max;
+use std::cmp::min;
 
 pub struct RandomFee;
 
@@ -38,7 +38,7 @@ impl Generator for RandomFee {
                 if fee != Capacity::zero() {
                     output2.capacity = output2
                         .capacity
-                        .safe_add(Capacity::shannons(rng.gen_range(0, max(5, fee.as_u64()))))
+                        .safe_add(Capacity::shannons(rng.gen_range(0, min(5, fee.as_u64()))))
                         .unwrap();
                 }
                 vec![output, output2]

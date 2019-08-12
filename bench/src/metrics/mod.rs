@@ -68,6 +68,10 @@ impl Metrics {
     }
 
     fn average_elapsed(&self) -> Duration {
+        if self.elapseds.is_empty() {
+            return Duration::new(0, 0);
+        }
+
         let elapseds = self
             .elapseds
             .iter()

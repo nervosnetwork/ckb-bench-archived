@@ -19,7 +19,7 @@ rpc_url = "http://127.0.0.1:8114"
 delay_type = { Uniform = { low = 1000, high = 2000 } }
 
 [serial]
-condition = "In2Out2"
+conditions = "{\"In2Out2\":1,\"RandomFee\":1}"
 transactions = 1000
 adjust_cycle = 100
 adjust_origin= { secs = 0, nanos = 5_000_000 } # 5ms
