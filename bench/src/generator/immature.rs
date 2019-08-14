@@ -27,7 +27,7 @@ impl Generator for Immature {
                     None,
                 );
                 let mut output2 = output.clone();
-                output.capacity = output.occupied_capacity().unwrap();
+                output.capacity = output.occupied_capacity(Capacity::zero()).unwrap();
                 output2.capacity = input_capacities
                     .safe_sub(output.capacity)
                     .expect("input capacity is enough for 2 secp outputs");
@@ -36,7 +36,7 @@ impl Generator for Immature {
             let raw_transaction = TransactionBuilder::default()
                 .inputs(inputs)
                 .outputs(outputs)
-                .dep(sender.dep_out_point().clone())
+                .cell_dep(sender.cell_dep().clone())
                 .build();
             let transaction = sign_transaction(raw_transaction, sender);
             transactions.push(transaction);

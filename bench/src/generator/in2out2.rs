@@ -4,6 +4,7 @@ use crate::types::{LiveCell, Personal, TaggedTransaction};
 use ckb_core::transaction::{CellOutput, TransactionBuilder};
 use ckb_core::Bytes;
 use ckb_occupied_capacity::Capacity;
+use numext_fixed_hash::H256;
 
 pub struct In2Out2;
 
@@ -21,12 +22,12 @@ impl Generator for In2Out2 {
             let outputs = {
                 let mut output = CellOutput::new(
                     Capacity::zero(),
-                    Bytes::new(),
+                    H256::zero(),
                     receiver.lock_script().clone(),
                     None,
                 );
                 let mut output2 = output.clone();
-                output.capacity = output.occupied_capacity().unwrap();
+                output.capacity = output.occupied_capacity(Capacity::zero()).unwrap();
                 output2.capacity = input_capacities
                     .safe_sub(output.capacity)
                     .expect("input capacity is enough for 2 secp outputs");
@@ -35,7 +36,8 @@ impl Generator for In2Out2 {
             let raw_transaction = TransactionBuilder::default()
                 .inputs(inputs)
                 .outputs(outputs)
-                .dep(sender.dep_out_point().clone())
+                .outputs_data(vec![Bytes::new(), Bytes::new()])
+                .cell_dep(sender.cell_dep().clone())
                 .build();
             let transaction = sign_transaction(raw_transaction, sender);
             transactions.push(transaction);

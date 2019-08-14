@@ -3,7 +3,7 @@ use crate::notify::Notifier;
 use crate::utils::privkey_from;
 use ckb_core::block::Block;
 use ckb_core::script::{Script, ScriptHashType};
-use ckb_core::transaction::{CellOutPoint, CellOutput, OutPoint, Transaction};
+use ckb_core::transaction::{CellDep, CellOutput, OutPoint, Transaction};
 use ckb_core::{BlockNumber, Bytes};
 use ckb_crypto::secp::{Privkey, Pubkey};
 use ckb_hash::blake2b_256;
@@ -36,9 +36,9 @@ pub struct LiveCell {
 #[derive(Default, Deserialize, Serialize)]
 pub struct Unspent {
     // TODO move logic inside
-    pub unsent: HashMap<CellOutPoint, LiveCell>,
+    pub unsent: HashMap<OutPoint, LiveCell>,
     // TODO unnecessary to store the whole transaction
-    pub sent: HashMap<CellOutPoint, Transaction>,
+    pub sent: HashMap<OutPoint, Transaction>,
     pub block_hash: H256,
     pub block_number: BlockNumber,
 }
@@ -47,14 +47,14 @@ impl Unspent {
     pub fn mark_sent(&mut self, transactions: &[Transaction]) {
         for transaction in transactions {
             for out_point in transaction.input_pts_iter() {
-                let cell = out_point.cell.clone().unwrap();
+                let cell = out_point.clone();
                 self.unsent.remove(&cell);
                 self.sent.insert(cell, transaction.clone());
             }
         }
     }
 
-    pub fn unsent_iter(&self) -> impl Iterator<Item = (&CellOutPoint, &LiveCell)> {
+    pub fn unsent_iter(&self) -> impl Iterator<Item = (&OutPoint, &LiveCell)> {
         self.unsent
             .iter()
             .filter(move |(_, live_cell)| live_cell.valid_since < self.block_number)
@@ -68,13 +68,12 @@ impl Unspent {
         block_number: BlockNumber,
     ) {
         for dead in dead_out_points.iter() {
-            let cell = &dead.cell.clone().unwrap();
+            let cell = &dead.clone();
             self.sent.remove(cell);
             self.unsent.remove(cell);
         }
         for live in live_cells.into_iter() {
-            self.unsent
-                .insert(live.out_point.clone().cell.unwrap(), live);
+            self.unsent.insert(live.out_point.clone(), live);
         }
         self.block_hash = block_hash;
         self.block_number = block_number;
@@ -87,7 +86,7 @@ pub struct Personal {
     privkey: Privkey,
     pubkey: Pubkey,
     lock_script: Script,
-    dep_out_point: OutPoint,
+    cell_dep: CellDep,
     unspent: Arc<Mutex<Unspent>>,
     _handler: Option<JoinHandle<()>>,
 }
@@ -100,7 +99,7 @@ impl Clone for Personal {
             privkey: privkey_from(self.privkey_string()).unwrap(),
             pubkey: self.pubkey().clone(),
             lock_script: self.lock_script().clone(),
-            dep_out_point: self.dep_out_point().clone(),
+            cell_dep: self.cell_dep().clone(),
             unspent: Arc::clone(&self.unspent),
             _handler: None,
         }
@@ -126,17 +125,13 @@ impl Personal {
             code_hash: secp.code_hash(),
             hash_type: ScriptHashType::Data,
         };
-        let dep_out_point = OutPoint {
-            cell: Some(secp.out_point),
-            block_hash: Some(secp.block_hash),
-        };
         let mut this = Self {
             privkey_string,
             basedir: basedir.to_string(),
             privkey,
             pubkey,
             lock_script,
-            dep_out_point,
+            cell_dep: CellDep::new_cell(secp.out_point),
             unspent: Arc::new(Mutex::new(Unspent::default())),
             _handler: None,
         };
@@ -150,8 +145,8 @@ impl Personal {
         self._handler = Some(self.spawn_collect_unspent(notifier));
     }
 
-    pub fn dep_out_point(&self) -> &OutPoint {
-        &self.dep_out_point
+    pub fn cell_dep(&self) -> &CellDep {
+        &self.cell_dep
     }
 
     fn ready_unspent(&self, jsonrpc: &Jsonrpc) {
@@ -255,11 +250,8 @@ impl Personal {
                 let live_cell = LiveCell {
                     cell_output: cell_output.clone(),
                     out_point: OutPoint {
-                        block_hash: None,
-                        cell: Some(CellOutPoint {
-                            tx_hash: transaction.hash().clone(),
-                            index: index as u32,
-                        }),
+                        tx_hash: transaction.hash().clone(),
+                        index: index as u32,
                     },
                     valid_since,
                 };
@@ -273,7 +265,7 @@ impl Personal {
 #[derive(Clone)]
 pub struct Secp {
     cell_output: CellOutput,
-    out_point: CellOutPoint,
+    out_point: OutPoint,
     block_hash: H256,
 }
 
@@ -284,10 +276,10 @@ impl Secp {
     }
 
     pub fn code_hash(&self) -> H256 {
-        self.cell_output.data_hash()
+        self.cell_output.data_hash().to_owned()
     }
 
-    pub fn out_point(&self) -> &CellOutPoint {
+    pub fn out_point(&self) -> &OutPoint {
         &self.out_point
     }
 
@@ -299,7 +291,7 @@ impl Secp {
         let cell = transaction.outputs()[index].clone();
         Ok(Self {
             cell_output: cell,
-            out_point: CellOutPoint {
+            out_point: OutPoint {
                 tx_hash: transaction.hash().clone(),
                 index: index as u32,
             },

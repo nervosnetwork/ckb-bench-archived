@@ -4,6 +4,7 @@ use crate::types::{LiveCell, Personal, TaggedTransaction};
 use ckb_core::transaction::{CellOutput, TransactionBuilder};
 use ckb_core::Bytes;
 use ckb_occupied_capacity::Capacity;
+use numext_fixed_hash::H256;
 use rand::{thread_rng, Rng};
 use std::cmp::min;
 
@@ -23,11 +24,11 @@ impl Generator for RandomFee {
             let outputs = {
                 let mut output = CellOutput::new(
                     Capacity::zero(),
-                    Bytes::new(),
+                    H256::zero(),
                     receiver.lock_script().clone(),
                     None,
                 );
-                output.capacity = output.occupied_capacity().unwrap();
+                output.capacity = output.occupied_capacity(Capacity::zero()).unwrap();
                 let mut output2 = output.clone();
                 let fee = input_capacities
                     .safe_sub(output.capacity)
@@ -46,7 +47,8 @@ impl Generator for RandomFee {
             let raw_transaction = TransactionBuilder::default()
                 .inputs(inputs)
                 .outputs(outputs)
-                .dep(sender.dep_out_point().clone())
+                .outputs_data(vec![Bytes::new(), Bytes::new()])
+                .cell_dep(sender.cell_dep().clone())
                 .build();
             let transaction = sign_transaction(raw_transaction, sender);
             transactions.push(transaction);

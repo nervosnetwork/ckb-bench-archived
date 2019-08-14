@@ -1,6 +1,8 @@
 use crate::config::Config;
 use crate::types::{LiveCell, Personal, Secp, MIN_SECP_CELL_CAPACITY};
-use ckb_core::transaction::{CellInput, CellOutput, OutPoint, Transaction, TransactionBuilder};
+use ckb_core::transaction::{
+    CellDep, CellInput, CellOutput, OutPoint, Transaction, TransactionBuilder,
+};
 use ckb_core::{Bytes, Capacity};
 use ckb_hash::blake2b_256;
 use failure::{format_err, Error};
@@ -36,7 +38,9 @@ fn burn(
     secp: Secp,
     outputs_count: usize,
 ) -> Vec<Transaction> {
-    let dep = { OutPoint::new_cell(secp.out_point().tx_hash.clone(), secp.out_point().index) };
+    let dep = CellDep::new_cell({
+        OutPoint::new(secp.out_point().tx_hash.clone(), secp.out_point().index)
+    });
     sender
         .unspent()
         .unsent_iter()
@@ -45,14 +49,15 @@ fn burn(
             let input = CellInput::new(previous.out_point.clone(), 0);
             let output = CellOutput {
                 capacity: previous.cell_output.capacity,
-                data: Bytes::new(),
+                data_hash: H256::zero(),
                 lock: receiver.lock_script().clone(),
                 type_: None,
             };
             let raw_transaction = TransactionBuilder::default()
                 .input(input)
                 .output(output)
-                .dep(dep.clone())
+                .output_data(Bytes::new())
+                .cell_dep(dep.clone())
                 .build();
             let witness = {
                 let hash = raw_transaction.hash();
@@ -82,13 +87,13 @@ fn issue(
             .map(|_| {
                 let mut output = CellOutput {
                     capacity: Capacity::zero(),
-                    data: Bytes::new(),
+                    data_hash: H256::zero(),
                     lock: receiver.lock_script().clone(),
                     type_: None,
                 };
                 // TODO refactor it.
                 output.capacity = output
-                    .occupied_capacity()
+                    .occupied_capacity(Capacity::zero())
                     .unwrap()
                     .safe_mul(2 as u64)
                     .unwrap()
@@ -98,7 +103,9 @@ fn issue(
             })
             .collect()
     };
-    let dep = { OutPoint::new_cell(secp.out_point().tx_hash.clone(), secp.out_point().index) };
+    let dep = CellDep::new_cell({
+        OutPoint::new(secp.out_point().tx_hash.clone(), secp.out_point().index)
+    });
     let mut transactions = Vec::new();
     // TODO refactor it
     for (_, previous) in sender.unspent().unsent_iter() {
@@ -131,7 +138,7 @@ fn issue(
         if input_capacity != Capacity::zero() {
             outputs.push(CellOutput {
                 capacity: input_capacity,
-                data: Bytes::new(),
+                data_hash: H256::zero(),
                 lock: sender.lock_script().clone(),
                 type_: None,
             });
@@ -139,8 +146,9 @@ fn issue(
 
         let raw_transaction = TransactionBuilder::default()
             .input(input)
+            .outputs_data((0..outputs.len()).map(|_| Bytes::new()))
             .outputs(outputs)
-            .dep(dep.clone())
+            .cell_dep(dep.clone())
             .build();
         let witness = {
             let hash = raw_transaction.hash();
