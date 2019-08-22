@@ -1,19 +1,19 @@
 use crate::config::Condition;
 use crate::notify::Notifier;
 use crate::utils::privkey_from;
-use ckb_core::block::Block;
-use ckb_core::script::{Script, ScriptHashType};
-use ckb_core::transaction::{CellDep, CellOutput, OutPoint, Transaction};
-use ckb_core::{BlockNumber, Bytes};
+use bytes::Bytes;
 use ckb_crypto::secp::{Privkey, Pubkey};
 use ckb_hash::blake2b_256;
+use ckb_types::core::{
+    BlockNumber, BlockView as Block, DepType, ScriptHashType, TransactionView as Transaction,
+};
+use ckb_types::packed::{BytesVec, CellDep, CellOutput, OutPoint, Script};
+use ckb_types::prelude::*;
 use ckb_util::{Mutex, MutexGuard};
 use failure::Error;
-use numext_fixed_hash::{H160, H256};
+use numext_fixed_hash::{h256, H160, H256};
 use rpc_client::Jsonrpc;
-use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::Path;
 use std::sync::Arc;
 use std::thread::{spawn, JoinHandle};
 
@@ -25,7 +25,7 @@ pub struct TaggedTransaction {
     pub transaction: Transaction,
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Clone)]
 pub struct LiveCell {
     pub cell_output: CellOutput,
     pub out_point: OutPoint,
@@ -33,7 +33,7 @@ pub struct LiveCell {
 }
 
 // TODO recycle the sent failed cells (within `sent`, but the corresponding transactions are not found
-#[derive(Default, Deserialize, Serialize)]
+#[derive(Default)]
 pub struct Unspent {
     // TODO move logic inside
     pub unsent: HashMap<OutPoint, LiveCell>,
@@ -120,18 +120,22 @@ impl Personal {
         let address = H160::from_slice(&blake2b_256(pubkey.serialize())[0..20])
             .expect("failed to generate hash(H160) from pubkey");
         let secp = Secp::load(&notifier)?;
-        let lock_script = Script {
-            args: vec![Bytes::from(address.as_bytes())],
-            code_hash: secp.code_hash(),
-            hash_type: ScriptHashType::Data,
-        };
+        let lock_script = Script::new_builder()
+            .args(
+                BytesVec::new_builder()
+                    .push(Bytes::from(address.as_bytes()).pack())
+                    .build(),
+            )
+            .code_hash(secp.lock_me().pack())
+            .hash_type(ScriptHashType::Type.pack())
+            .build();
         let mut this = Self {
             privkey_string,
             basedir: basedir.to_string(),
             privkey,
             pubkey,
             lock_script,
-            cell_dep: CellDep::new_cell(secp.out_point),
+            cell_dep: secp.unlock_me_cell_dep(),
             unspent: Arc::new(Mutex::new(Unspent::default())),
             _handler: None,
         };
@@ -150,16 +154,17 @@ impl Personal {
     }
 
     fn ready_unspent(&self, jsonrpc: &Jsonrpc) {
-        let unspent_path =
-            Path::new(&self.basedir).join(format!("{:x}", self.lock_script().hash()));
-        if let Ok(content) = ::std::fs::read(unspent_path) {
-            if let Ok(unspent) = bincode::deserialize::<Unspent>(&content) {
-                if jsonrpc.get_block(unspent.block_hash.clone()).is_some() {
-                    *self.unspent() = unspent;
-                    return;
-                }
-            }
-        }
+        // FIXME
+        //        let unspent_path =
+        //            Path::new(&self.basedir).join(format!("{:x}", self.lock_script().calc_script_hash()));
+        //        if let Ok(content) = ::std::fs::read(unspent_path) {
+        //            if let Ok(unspent) = bincode::deserialize::<Unspent>(&content) {
+        //                if jsonrpc.get_block(unspent.block_hash.clone()).is_some() {
+        //                    *self.unspent() = unspent;
+        //                    return;
+        //                }
+        //            }
+        //        }
 
         let genesis = jsonrpc.get_block_by_number(0).expect("get genesis block");
         self.handle_block(&genesis.into());
@@ -211,16 +216,17 @@ impl Personal {
         self.unspent().update(
             &dead_out_points,
             live_cells,
-            block.header().hash().clone(),
+            block.header().hash().unpack(),
             block.header().number(),
         );
     }
 
     pub fn save_unspent(&self) {
-        let unspent_path =
-            Path::new(&self.basedir).join(format!("{:x}", self.lock_script().hash()));
-        let serialized = bincode::serialize(&*self.unspent()).expect("serialize unspent");
-        ::std::fs::write(unspent_path, serialized).expect("open unspent");
+        // let unspent_path =
+        //     Path::new(&self.basedir).join(format!("{:x}", self.lock_script().calc_script_hash()));
+        // FIXME
+        // let serialized = bincode::serialize(&*self.unspent()).expect("serialize unspent");
+        // ::std::fs::write(unspent_path, serialized).expect("open unspent");
     }
 
     fn dead_out_points(&self, block: &Block) -> Vec<OutPoint> {
@@ -235,11 +241,11 @@ impl Personal {
 
     // Return the owned output cells within the given block
     pub fn live_cells(&self, block: &Block) -> Vec<LiveCell> {
-        let lock_hash = self.lock_script().hash();
+        let lock_hash = self.lock_script().calc_script_hash();
         let mut lives = Vec::new();
         for (tx_index, transaction) in block.transactions().iter().enumerate() {
-            for (index, cell_output) in transaction.outputs().iter().enumerate() {
-                if lock_hash != cell_output.lock.hash() {
+            for (index, cell_output) in transaction.outputs().into_iter().enumerate() {
+                if lock_hash != cell_output.lock().calc_script_hash() {
                     continue;
                 }
                 let valid_since = if tx_index == 0 {
@@ -249,10 +255,10 @@ impl Personal {
                 };
                 let live_cell = LiveCell {
                     cell_output: cell_output.clone(),
-                    out_point: OutPoint {
-                        tx_hash: transaction.hash().clone(),
-                        index: index as u32,
-                    },
+                    out_point: OutPoint::new_builder()
+                        .tx_hash(transaction.hash())
+                        .index(index.pack())
+                        .build(),
                     valid_since,
                 };
                 lives.push(live_cell);
@@ -264,9 +270,9 @@ impl Personal {
 
 #[derive(Clone)]
 pub struct Secp {
-    cell_output: CellOutput,
-    out_point: OutPoint,
     block_hash: H256,
+    lock_me: H256,
+    unlock_me: OutPoint,
 }
 
 impl Secp {
@@ -275,27 +281,50 @@ impl Secp {
         Secp::from_block(genesis)
     }
 
-    pub fn code_hash(&self) -> H256 {
-        self.cell_output.data_hash().to_owned()
+    // TODO rename this funny function
+    pub fn lock_me(&self) -> H256 {
+        self.lock_me.clone()
     }
 
-    pub fn out_point(&self) -> &OutPoint {
-        &self.out_point
+    pub fn unlock_me_cell_dep(&self) -> CellDep {
+        CellDep::new_builder()
+            .dep_type(DepType::DepGroup.pack())
+            .out_point(self.unlock_me.clone())
+            .build()
     }
 
     pub fn from_block(block: Block) -> Result<Self, Error> {
         assert_eq!(block.header().number(), 0);
-        assert_eq!(block.transactions().len(), 1);
-        let transaction = &block.transactions()[0];
-        let index = 1;
-        let cell = transaction.outputs()[index].clone();
+        assert_eq!(block.transactions().len(), 2);
+
+        // secp_code, txs[0][1]
+        let lock_me = {
+            let transaction = &block.transactions()[0];
+            let index = 1;
+            let cell = transaction.outputs().get(index).unwrap().clone();
+            cell.type_()
+                .to_opt()
+                .map(|script| script.calc_script_hash())
+                .unwrap()
+        };
+
+        // group-secp, tx[1][0]
+        let unlock_me = {
+            let transaction = &block.transactions()[1];
+            let index = 0u32;
+            // let cell = transaction.outputs().get(index).unwrap().clone();
+            // let output_data = transaction.outputs_data().get(index).unwrap().clone();
+            // CellOutput::calc_data_hash(output_data.as_slice())
+            OutPoint::new_builder()
+                .tx_hash(transaction.hash())
+                .index(index.pack())
+                .build()
+        };
+
         Ok(Self {
-            cell_output: cell,
-            out_point: OutPoint {
-                tx_hash: transaction.hash().clone(),
-                index: index as u32,
-            },
-            block_hash: block.header().hash().clone(),
+            lock_me,
+            unlock_me,
+            block_hash: block.header().hash().unpack(),
         })
     }
 }

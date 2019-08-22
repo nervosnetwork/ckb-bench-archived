@@ -1,9 +1,9 @@
 use crate::types::{LiveCell, Personal, TaggedTransaction};
-use ckb_core::block::Block;
-use ckb_core::transaction::{CellInput, Transaction, TransactionBuilder};
-use ckb_core::Bytes;
+use bytes::Bytes;
 use ckb_hash::blake2b_256;
-use ckb_occupied_capacity::Capacity;
+use ckb_types::core::{BlockView as Block, Capacity, TransactionView as Transaction};
+use ckb_types::packed::{CellInput, Witness};
+use ckb_types::prelude::*;
 use crossbeam_channel::Sender;
 use numext_fixed_hash::H256;
 
@@ -11,6 +11,7 @@ mod in2out2;
 mod random_fee;
 mod unresolvable;
 
+use crate::traits::PackedCapacityAsCapacity;
 pub use in2out2::In2Out2;
 pub use random_fee::RandomFee;
 pub use unresolvable::Unresolvable;
@@ -48,7 +49,7 @@ pub trait Generator {
 
 pub fn construct_inputs(live_cells: Vec<LiveCell>) -> (Vec<CellInput>, Capacity) {
     let input_capacities = live_cells.iter().fold(Capacity::zero(), |sum, c| {
-        sum.safe_add(c.cell_output.capacity)
+        sum.safe_add(c.cell_output.capacity().as_capacity())
             .expect("sum input capacities")
     });
     let inputs: Vec<_> = live_cells
@@ -60,16 +61,18 @@ pub fn construct_inputs(live_cells: Vec<LiveCell>) -> (Vec<CellInput>, Capacity)
 
 pub fn sign_transaction(raw_transaction: Transaction, sender: &Personal) -> Transaction {
     let witness = {
-        let message = H256::from(blake2b_256(raw_transaction.hash()));
-        let signature_bytes = sender
+        let message = H256::from(blake2b_256(raw_transaction.hash().as_slice()));
+        let signature_bytes: Bytes = sender
             .privkey()
             .sign_recoverable(&message)
             .unwrap()
-            .serialize();
-        vec![Bytes::from(signature_bytes)]
+            .serialize()
+            .into();
+        Witness::new_builder().push(signature_bytes.pack()).build()
     };
     let witnesses = vec![witness.clone(), witness];
-    TransactionBuilder::from_transaction(raw_transaction)
+    raw_transaction
+        .as_advanced_builder()
         .witnesses(witnesses)
         .build()
 }

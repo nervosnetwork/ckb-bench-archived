@@ -1,9 +1,9 @@
-use ckb_core::{BlockNumber as CoreBlockNumber, Version as CoreVersion};
 use ckb_jsonrpc_types::{
     Block, BlockNumber, BlockTemplate, BlockView, CellOutputWithOutPoint, CellWithStatus,
     ChainInfo, DryRunResult, HeaderView, Node, OutPoint, PeerState, Transaction,
     TransactionWithStatus, TxPoolInfo, Unsigned, Version,
 };
+use ckb_types::core::{BlockNumber as CoreBlockNumber, Version as CoreVersion};
 use ckb_util::Mutex;
 use failure::{format_err, Error};
 use hyper::header::{Authorization, Basic};

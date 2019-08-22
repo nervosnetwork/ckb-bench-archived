@@ -1,6 +1,5 @@
 use crate::config::Config;
-use ckb_core::header::Header;
-use ckb_core::BlockNumber;
+use ckb_types::core::{BlockNumber, HeaderView as Header};
 use failure::Error;
 use rpc_client::Jsonrpc;
 use std::ops::Deref;

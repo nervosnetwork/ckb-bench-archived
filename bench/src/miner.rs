@@ -1,5 +1,5 @@
 use crate::config;
-use ckb_core::block::BlockBuilder;
+use ckb_types::packed;
 use rand::{
     distributions::{self as dist, Distribution as _},
     thread_rng,
@@ -92,9 +92,8 @@ fn solve(jsonrpc: &Jsonrpc) {
     let template = jsonrpc.get_block_template(None, None, None);
     let work_id = template.work_id.0;
     let block_number = template.number.0;
-    let block_builder: BlockBuilder = template.into();
-    let block = block_builder.build();
-    if let Some(block_hash) = jsonrpc.submit_block(work_id.to_string(), (&block).into()) {
+    let block = Into::<packed::Block>::into(template);
+    if let Some(block_hash) = jsonrpc.submit_block(work_id.to_string(), block.into()) {
         ckb_logger::debug!("submit block  #{} {:#x}", block_number, block_hash);
     } else {
         ckb_logger::error!("submit block  #{} None", block_number);

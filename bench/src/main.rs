@@ -19,6 +19,7 @@ mod metrics;
 mod miner;
 mod notify;
 mod run;
+mod traits;
 mod types;
 mod utils;
 

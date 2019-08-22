@@ -1,11 +1,11 @@
 use crate::config::Condition;
 use crate::generator::{construct_inputs, sign_transaction, Generator};
+use crate::traits::PackedCapacityAsCapacity;
 use crate::types::{LiveCell, Personal, TaggedTransaction};
-use ckb_core::block::Block;
-use ckb_core::transaction::{CellOutput, TransactionBuilder};
-use ckb_occupied_capacity::Capacity;
+use ckb_types::core::{BlockView as Block, Capacity, TransactionBuilder};
+use ckb_types::packed::CellOutput;
+use ckb_types::prelude::*;
 use crossbeam_channel::Sender;
-use numext_fixed_hash::H256;
 
 pub struct Unresolvable;
 
@@ -21,17 +21,20 @@ impl Generator for Unresolvable {
             let input_cells: Vec<_> = (0..2).map(|_| live_cells.pop().unwrap()).collect();
             let (inputs, input_capacities) = construct_inputs(input_cells);
             let outputs = {
-                let mut output = CellOutput::new(
-                    Capacity::zero(),
-                    H256::zero(),
-                    receiver.lock_script().clone(),
-                    None,
-                );
-                let mut output2 = output.clone();
-                output.capacity = output.occupied_capacity(Capacity::zero()).unwrap();
-                output2.capacity = input_capacities
-                    .safe_sub(output.capacity)
-                    .expect("input capacity is enough for 2 secp outputs");
+                let output = CellOutput::new_builder()
+                    .lock(receiver.lock_script().clone())
+                    .build_exact_capacity(Capacity::zero())
+                    .unwrap();
+                let output2 = output
+                    .clone()
+                    .as_builder()
+                    .capacity(
+                        input_capacities
+                            .safe_sub(output.capacity().as_capacity())
+                            .expect("input capacity is enough for 2 secp outputs")
+                            .pack(),
+                    )
+                    .build();
                 vec![output, output2]
             };
 

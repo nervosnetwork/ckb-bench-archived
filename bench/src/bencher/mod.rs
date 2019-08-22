@@ -2,8 +2,8 @@ use crate::config::{Condition, Serial, Url};
 use crate::metrics::Metrics;
 use crate::types::TaggedTransaction;
 use crate::utils::wait_until;
-use ckb_core::BlockNumber;
 use ckb_logger::{debug, info};
+use ckb_types::core::BlockNumber;
 use ckb_util::Mutex;
 use crossbeam_channel::{bounded, Receiver, Sender};
 use failure::Error;
@@ -111,9 +111,9 @@ impl DefaultBencher {
                         } = tagged_transaction;
                         match condition {
                             Condition::Unresolvable => {
-                                jsonrpc.broadcast_transaction((&transaction).into())
+                                jsonrpc.broadcast_transaction(transaction.data().into())
                             }
-                            _ => jsonrpc.send_transaction((&transaction).into()),
+                            _ => jsonrpc.send_transaction(transaction.data().into()),
                         };
                     }
                 });
