@@ -11,7 +11,7 @@ use ckb_types::packed::{BytesVec, CellDep, CellOutput, OutPoint, Script};
 use ckb_types::prelude::*;
 use ckb_util::{Mutex, MutexGuard};
 use failure::Error;
-use numext_fixed_hash::{h256, H160, H256};
+use numext_fixed_hash::{H160, H256};
 use rpc_client::Jsonrpc;
 use std::collections::HashMap;
 use std::sync::Arc;

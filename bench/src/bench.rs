@@ -4,7 +4,7 @@ use crate::types::{LiveCell, Personal, Secp, MIN_SECP_CELL_CAPACITY};
 use bytes::Bytes;
 use ckb_hash::blake2b_256;
 use ckb_types::core::{Capacity, TransactionBuilder, TransactionView as Transaction};
-use ckb_types::packed::{CellDep, CellInput, CellOutput, Witness};
+use ckb_types::packed::{CellInput, CellOutput, Witness};
 use ckb_types::prelude::*;
 use failure::{format_err, Error};
 use numext_fixed_hash::H256;
