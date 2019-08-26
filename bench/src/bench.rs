@@ -172,7 +172,6 @@ fn issue(
             .as_advanced_builder()
             .witness(witness)
             .build();
-        ckb_logger::info!("bilibili transaction: {}", transaction);
         transactions.push(transaction);
     }
     assert_eq!(targets.len(), 0, "No enough balance");
