@@ -9,9 +9,9 @@ use ckb_types::core::{
 };
 use ckb_types::packed::{BytesVec, CellDep, CellOutput, OutPoint, Script};
 use ckb_types::prelude::*;
+use ckb_types::{H256, H160};
 use ckb_util::{Mutex, MutexGuard};
 use failure::Error;
-use numext_fixed_hash::{H160, H256};
 use rpc_client::Jsonrpc;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -19,6 +19,10 @@ use std::thread::{spawn, JoinHandle};
 
 pub const MIN_SECP_CELL_CAPACITY: u64 = 60_0000_0000;
 pub const CELLBASE_MATURITY: u64 = 10;
+pub const SECP_TRANSACTION_INDEX: usize = 0;
+pub const SECP_OUTPUT_INDEX: usize= 1;
+pub const GROUP_SECP_TRANSACTION_INDEX: usize = 1;
+pub const GROUP_SECP_OUTPUT_INDEX: u32 = 0;
 
 pub struct TaggedTransaction {
     pub condition: Condition,
@@ -297,34 +301,29 @@ impl Secp {
         assert_eq!(block.header().number(), 0);
         assert_eq!(block.transactions().len(), 2);
 
-        // secp_code, txs[0][1]
+        let block_hash = block.header().hash().unpack();
         let lock_me = {
-            let transaction = &block.transactions()[0];
-            let index = 1;
-            let cell = transaction.outputs().get(index).unwrap().clone();
+            let transaction = &block.transactions()[SECP_TRANSACTION_INDEX];
+            let cell = transaction.outputs().get(SECP_OUTPUT_INDEX).unwrap().clone();
             cell.type_()
                 .to_opt()
                 .map(|script| script.calc_script_hash())
                 .unwrap()
+                .unpack()
         };
 
-        // group-secp, tx[1][0]
         let unlock_me = {
-            let transaction = &block.transactions()[1];
-            let index = 0u32;
-            // let cell = transaction.outputs().get(index).unwrap().clone();
-            // let output_data = transaction.outputs_data().get(index).unwrap().clone();
-            // CellOutput::calc_data_hash(output_data.as_slice())
+            let transaction = &block.transactions()[GROUP_SECP_TRANSACTION_INDEX];
             OutPoint::new_builder()
                 .tx_hash(transaction.hash())
-                .index(index.pack())
+                .index(GROUP_SECP_OUTPUT_INDEX.pack())
                 .build()
         };
 
         Ok(Self {
             lock_me,
             unlock_me,
-            block_hash: block.header().hash().unpack(),
+            block_hash,
         })
     }
 }

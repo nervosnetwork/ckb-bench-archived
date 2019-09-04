@@ -10,7 +10,6 @@ jsonrpc-client-core = "0.5.0"
 jsonrpc-client-http = "0.5.0"
 hyper = "0.11.27"
 failure = "0.1.5"
-numext-fixed-hash = "~0.1"
-ckb-jsonrpc-types = { git = "https://github.com/nervosnetwork/ckb.git", rev = "ae955f3", package="ckb-jsonrpc-types" }
-ckb-types = { git = "https://github.com/nervosnetwork/ckb.git", rev = "ae955f3" }
-ckb-util = { git = "https://github.com/nervosnetwork/ckb.git", rev = "ae955f3" }
+ckb-jsonrpc-types = { git = "https://github.com/nervosnetwork/ckb.git", rev = "a0dae62", package="ckb-jsonrpc-types" }
+ckb-types = { git = "https://github.com/nervosnetwork/ckb.git", rev = "a0dae62" }
+ckb-util = { git = "https://github.com/nervosnetwork/ckb.git", rev = "a0dae62" }

@@ -4,8 +4,8 @@ use ckb_hash::blake2b_256;
 use ckb_types::core::{BlockView as Block, Capacity, TransactionView as Transaction};
 use ckb_types::packed::{CellInput, Witness};
 use ckb_types::prelude::*;
+use ckb_types::H256;
 use crossbeam_channel::Sender;
-use numext_fixed_hash::H256;
 
 mod in2out2;
 mod random_fee;

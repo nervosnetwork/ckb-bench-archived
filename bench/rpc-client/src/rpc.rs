@@ -4,12 +4,12 @@ use ckb_jsonrpc_types::{
     TransactionWithStatus, TxPoolInfo, Unsigned, Version,
 };
 use ckb_types::core::{BlockNumber as CoreBlockNumber, Version as CoreVersion};
+use ckb_types::H256;
 use ckb_util::Mutex;
 use failure::{format_err, Error};
 use hyper::header::{Authorization, Basic};
 use jsonrpc_client_core::{expand_params, jsonrpc_client, Result as JsonRpcResult};
 use jsonrpc_client_http::{HttpHandle, HttpTransport};
-use numext_fixed_hash::H256;
 use std::env::var;
 use std::sync::Arc;
 

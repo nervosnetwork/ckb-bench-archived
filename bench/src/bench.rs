@@ -6,8 +6,8 @@ use ckb_hash::blake2b_256;
 use ckb_types::core::{Capacity, TransactionBuilder, TransactionView as Transaction};
 use ckb_types::packed::{CellInput, CellOutput, Witness};
 use ckb_types::prelude::*;
+use ckb_types::H256;
 use failure::{format_err, Error};
-use numext_fixed_hash::H256;
 use rpc_client::Jsonrpc;
 use std::vec::Vec;
 
