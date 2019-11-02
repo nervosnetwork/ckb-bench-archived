@@ -126,12 +126,12 @@ impl Personal {
         let lock_script = Script::new_builder()
             .args(Bytes::from(address.as_bytes()).pack())
             .code_hash(secp.type_lock_script_code_hash())
-            .hash_type(ScriptHashType::Type.pack())
+            .hash_type(ScriptHashType::Type.into())
             .build();
         let secp_out_point = OutPoint::new(secp.dep_group_tx_hash().clone(), 0);
         let cell_dep = CellDep::new_builder()
             .out_point(secp_out_point)
-            .dep_type(DepType::DepGroup.pack())
+            .dep_type(DepType::DepGroup.into())
             .build();
         let mut this = Self {
             privkey_string,

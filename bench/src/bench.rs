@@ -107,7 +107,7 @@ fn issue(
     let secp_out_point = OutPoint::new(secp.dep_group_tx_hash().clone(), 0);
     let dep = CellDep::new_builder()
         .out_point(secp_out_point)
-        .dep_type(DepType::DepGroup.pack())
+        .dep_type(DepType::DepGroup.into())
         .build();
     let mut transactions = Vec::new();
     // TODO refactor it
