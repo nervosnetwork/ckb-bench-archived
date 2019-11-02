@@ -1,15 +1,19 @@
-use ckb_core::{BlockNumber as CoreBlockNumber, Version as CoreVersion};
 use ckb_jsonrpc_types::{
     Block, BlockNumber, BlockTemplate, BlockView, CellOutputWithOutPoint, CellWithStatus,
     ChainInfo, DryRunResult, HeaderView, Node, OutPoint, PeerState, Transaction,
-    TransactionWithStatus, TxPoolInfo, Unsigned, Version,
+    TransactionWithStatus, TxPoolInfo, Uint64, Version,
+};
+use ckb_types::{
+    core::{BlockNumber as CoreBlockNumber, Version as CoreVersion},
+    packed::Byte32,
+    prelude::*,
+    H256,
 };
 use ckb_util::Mutex;
 use failure::{format_err, Error};
 use hyper::header::{Authorization, Basic};
 use jsonrpc_client_core::{expand_params, jsonrpc_client, Result as JsonRpcResult};
 use jsonrpc_client_http::{HttpHandle, HttpTransport};
-use numext_fixed_hash::H256;
 use std::env::var;
 use std::sync::Arc;
 
@@ -55,10 +59,10 @@ impl Jsonrpc {
         &self.inner
     }
 
-    pub fn get_block(&self, hash: H256) -> Option<BlockView> {
+    pub fn get_block(&self, hash: Byte32) -> Option<BlockView> {
         self.inner
             .lock()
-            .get_block(hash)
+            .get_block(hash.unpack())
             .call()
             .expect("rpc call get_block")
     }
@@ -66,15 +70,15 @@ impl Jsonrpc {
     pub fn get_block_by_number(&self, number: CoreBlockNumber) -> Option<BlockView> {
         self.inner
             .lock()
-            .get_block_by_number(BlockNumber(number))
+            .get_block_by_number(number.into())
             .call()
             .expect("rpc call get_block_by_number")
     }
 
-    pub fn get_transaction(&self, hash: H256) -> Option<TransactionWithStatus> {
+    pub fn get_transaction(&self, hash: Byte32) -> Option<TransactionWithStatus> {
         self.inner
             .lock()
-            .get_transaction(hash)
+            .get_transaction(hash.unpack())
             .call()
             .expect("rpc call get_transaction")
     }
@@ -82,7 +86,7 @@ impl Jsonrpc {
     pub fn get_block_hash(&self, number: CoreBlockNumber) -> Option<H256> {
         self.inner
             .lock()
-            .get_block_hash(BlockNumber(number))
+            .get_block_hash(number.into())
             .call()
             .expect("rpc call get_block_hash")
     }
@@ -98,20 +102,20 @@ impl Jsonrpc {
     pub fn get_header_by_number(&self, number: CoreBlockNumber) -> Option<HeaderView> {
         self.inner
             .lock()
-            .get_header_by_number(BlockNumber(number))
+            .get_header_by_number(number.into())
             .call()
             .expect("rpc call get_header_by_number")
     }
 
     pub fn get_cells_by_lock_hash(
         &self,
-        lock_hash: H256,
+        lock_hash: Byte32,
         from: CoreBlockNumber,
         to: CoreBlockNumber,
     ) -> Vec<CellOutputWithOutPoint> {
         self.inner
             .lock()
-            .get_cells_by_lock_hash(lock_hash, BlockNumber(from), BlockNumber(to))
+            .get_cells_by_lock_hash(lock_hash.unpack(), from.into(), to.into())
             .call()
             .expect("rpc call get_cells_by_lock_hash")
     }
@@ -130,7 +134,7 @@ impl Jsonrpc {
             .get_tip_block_number()
             .call()
             .expect("rpc call get_tip_block_number")
-            .0
+            .into()
     }
 
     pub fn local_node_info(&self) -> Node {
@@ -155,9 +159,9 @@ impl Jsonrpc {
         proposals_limit: Option<u64>,
         max_version: Option<CoreVersion>,
     ) -> BlockTemplate {
-        let bytes_limit = bytes_limit.map(Unsigned);
-        let proposals_limit = proposals_limit.map(Unsigned);
-        let max_version = max_version.map(Version);
+        let bytes_limit = bytes_limit.map(Into::into);
+        let proposals_limit = proposals_limit.map(Into::into);
+        let max_version = max_version.map(Into::into);
         self.inner
             .lock()
             .get_block_template(bytes_limit, proposals_limit, max_version)
@@ -253,8 +257,8 @@ jsonrpc_client!(pub struct Inner {
     pub fn get_peers(&mut self) -> RpcRequest<Vec<Node>>;
     pub fn get_block_template(
         &mut self,
-        bytes_limit: Option<Unsigned>,
-        proposals_limit: Option<Unsigned>,
+        bytes_limit: Option<Uint64>,
+        proposals_limit: Option<Uint64>,
         max_version: Option<Version>
     ) -> RpcRequest<BlockTemplate>;
     pub fn submit_block(&mut self, _work_id: String, _data: Block) -> RpcRequest<Option<H256>>;

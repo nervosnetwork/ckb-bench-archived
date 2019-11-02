@@ -1,9 +1,10 @@
 use crate::generator::{construct_inputs, sign_transaction, Generator};
 use crate::types::{LiveCell, Personal};
-use ckb_core::block::Block;
-use ckb_core::transaction::{CellOutput, Transaction, TransactionBuilder};
-use ckb_core::Bytes;
-use ckb_occupied_capacity::Capacity;
+use ckb_types::{
+    packed::{Block, CellOutput, Transaction},
+    core::{Capacity, TransactionBuilder},
+    bytes::Bytes,
+};
 use crossbeam_channel::Sender;
 
 pub struct Immature;

@@ -1,15 +1,18 @@
 use crate::config::Condition;
 use crate::notify::Notifier;
 use crate::utils::privkey_from;
-use ckb_core::block::Block;
-use ckb_core::script::{Script, ScriptHashType};
-use ckb_core::transaction::{CellDep, CellOutput, OutPoint, Transaction};
-use ckb_core::{BlockNumber, Bytes};
+use ckb_chain_spec::{build_genesis_type_id_script, OUTPUT_INDEX_SECP256K1_BLAKE160_SIGHASH_ALL};
 use ckb_crypto::secp::{Privkey, Pubkey};
 use ckb_hash::blake2b_256;
+use ckb_types::{
+    bytes::Bytes,
+    core::{BlockNumber, BlockView, DepType, ScriptHashType, TransactionView},
+    packed::{Byte32, CellDep, CellOutput, OutPoint, Script},
+    prelude::*,
+    H160, H256,
+};
 use ckb_util::{Mutex, MutexGuard};
 use failure::Error;
-use numext_fixed_hash::{H160, H256};
 use rpc_client::Jsonrpc;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -22,10 +25,10 @@ pub const CELLBASE_MATURITY: u64 = 10;
 
 pub struct TaggedTransaction {
     pub condition: Condition,
-    pub transaction: Transaction,
+    pub transaction: TransactionView,
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Clone)]
 pub struct LiveCell {
     pub cell_output: CellOutput,
     pub out_point: OutPoint,
@@ -33,18 +36,18 @@ pub struct LiveCell {
 }
 
 // TODO recycle the sent failed cells (within `sent`, but the corresponding transactions are not found
-#[derive(Default, Deserialize, Serialize)]
+#[derive(Default)]
 pub struct Unspent {
     // TODO move logic inside
     pub unsent: HashMap<OutPoint, LiveCell>,
     // TODO unnecessary to store the whole transaction
-    pub sent: HashMap<OutPoint, Transaction>,
+    pub sent: HashMap<OutPoint, TransactionView>,
     pub block_hash: H256,
     pub block_number: BlockNumber,
 }
 
 impl Unspent {
-    pub fn mark_sent(&mut self, transactions: &[Transaction]) {
+    pub fn mark_sent(&mut self, transactions: &[TransactionView]) {
         for transaction in transactions {
             for out_point in transaction.input_pts_iter() {
                 let cell = out_point.clone();
@@ -120,18 +123,23 @@ impl Personal {
         let address = H160::from_slice(&blake2b_256(pubkey.serialize())[0..20])
             .expect("failed to generate hash(H160) from pubkey");
         let secp = Secp::load(&notifier)?;
-        let lock_script = Script {
-            args: vec![Bytes::from(address.as_bytes())],
-            code_hash: secp.code_hash(),
-            hash_type: ScriptHashType::Data,
-        };
+        let lock_script = Script::new_builder()
+            .args(Bytes::from(address.as_bytes()).pack())
+            .code_hash(secp.type_lock_script_code_hash())
+            .hash_type(ScriptHashType::Type.pack())
+            .build();
+        let secp_out_point = OutPoint::new(secp.dep_group_tx_hash().clone(), 0);
+        let cell_dep = CellDep::new_builder()
+            .out_point(secp_out_point)
+            .dep_type(DepType::DepGroup.pack())
+            .build();
         let mut this = Self {
             privkey_string,
             basedir: basedir.to_string(),
             privkey,
             pubkey,
             lock_script,
-            cell_dep: CellDep::new_cell(secp.out_point),
+            cell_dep,
             unspent: Arc::new(Mutex::new(Unspent::default())),
             _handler: None,
         };
@@ -150,16 +158,16 @@ impl Personal {
     }
 
     fn ready_unspent(&self, jsonrpc: &Jsonrpc) {
-        let unspent_path =
-            Path::new(&self.basedir).join(format!("{:x}", self.lock_script().hash()));
-        if let Ok(content) = ::std::fs::read(unspent_path) {
-            if let Ok(unspent) = bincode::deserialize::<Unspent>(&content) {
-                if jsonrpc.get_block(unspent.block_hash.clone()).is_some() {
-                    *self.unspent() = unspent;
-                    return;
-                }
-            }
-        }
+        // let unspent_path =
+        //     Path::new(&self.basedir).join(format!("{:x}", self.lock_script().hash()));
+        // if let Ok(content) = ::std::fs::read(unspent_path) {
+        //     if let Ok(unspent) = bincode::deserialize::<Unspent>(&content) {
+        //         if jsonrpc.get_block(unspent.block_hash.clone()).is_some() {
+        //             *self.unspent() = unspent;
+        //             return;
+        //         }
+        //     }
+        // }
 
         let genesis = jsonrpc.get_block_by_number(0).expect("get genesis block");
         self.handle_block(&genesis.into());
@@ -186,7 +194,7 @@ impl Personal {
     }
 
     #[allow(dead_code)]
-    pub fn mark_sent(&self, transactions: &[Transaction]) {
+    pub fn mark_sent(&self, transactions: &[TransactionView]) {
         self.unspent().mark_sent(transactions);
     }
 
@@ -198,32 +206,32 @@ impl Personal {
             while let Ok(block) = subscriber.recv() {
                 that.handle_block(&block);
 
-                if block.header().number() % 103 == 0 {
-                    that.save_unspent();
-                }
+                // if block.header().number() % 103 == 0 {
+                //     that.save_unspent();
+                // }
             }
         })
     }
 
-    fn handle_block(&self, block: &Block) {
+    fn handle_block(&self, block: &BlockView) {
         let dead_out_points = self.dead_out_points(block);
         let live_cells = self.live_cells(block);
         self.unspent().update(
             &dead_out_points,
             live_cells,
-            block.header().hash().clone(),
+            block.header().hash().unpack(),
             block.header().number(),
         );
     }
 
-    pub fn save_unspent(&self) {
-        let unspent_path =
-            Path::new(&self.basedir).join(format!("{:x}", self.lock_script().hash()));
-        let serialized = bincode::serialize(&*self.unspent()).expect("serialize unspent");
-        ::std::fs::write(unspent_path, serialized).expect("open unspent");
-    }
+    // pub fn save_unspent(&self) {
+    //     let unspent_path =
+    //         Path::new(&self.basedir).join(format!("{:x}", self.lock_script().hash()));
+    //     let serialized = bincode::serialize(&*self.unspent()).expect("serialize unspent");
+    //     ::std::fs::write(unspent_path, serialized).expect("open unspent");
+    // }
 
-    fn dead_out_points(&self, block: &Block) -> Vec<OutPoint> {
+    fn dead_out_points(&self, block: &BlockView) -> Vec<OutPoint> {
         let mut deads = Vec::new();
         for transaction in block.transactions().iter().skip(1) {
             for input in transaction.input_pts_iter() {
@@ -234,12 +242,12 @@ impl Personal {
     }
 
     // Return the owned output cells within the given block
-    pub fn live_cells(&self, block: &Block) -> Vec<LiveCell> {
-        let lock_hash = self.lock_script().hash();
+    pub fn live_cells(&self, block: &BlockView) -> Vec<LiveCell> {
+        let lock_hash = self.lock_script().calc_script_hash();
         let mut lives = Vec::new();
-        for (tx_index, transaction) in block.transactions().iter().enumerate() {
-            for (index, cell_output) in transaction.outputs().iter().enumerate() {
-                if lock_hash != cell_output.lock.hash() {
+        for (tx_index, transaction) in block.transactions().into_iter().enumerate() {
+            for (index, cell_output) in transaction.outputs().into_iter().enumerate() {
+                if lock_hash != cell_output.lock().calc_script_hash() {
                     continue;
                 }
                 let valid_since = if tx_index == 0 {
@@ -249,10 +257,7 @@ impl Personal {
                 };
                 let live_cell = LiveCell {
                     cell_output: cell_output.clone(),
-                    out_point: OutPoint {
-                        tx_hash: transaction.hash().clone(),
-                        index: index as u32,
-                    },
+                    out_point: OutPoint::new(transaction.hash().clone(), index as u32),
                     valid_since,
                 };
                 lives.push(live_cell);
@@ -264,9 +269,10 @@ impl Personal {
 
 #[derive(Clone)]
 pub struct Secp {
-    cell_output: CellOutput,
     out_point: OutPoint,
-    block_hash: H256,
+    block_hash: Byte32,
+    dep_group_tx_hash: Byte32,
+    type_lock_script_code_hash: Byte32,
 }
 
 impl Secp {
@@ -275,27 +281,29 @@ impl Secp {
         Secp::from_block(genesis)
     }
 
-    pub fn code_hash(&self) -> H256 {
-        self.cell_output.data_hash().to_owned()
+    pub fn dep_group_tx_hash(&self) -> Byte32 {
+        self.dep_group_tx_hash.clone()
+    }
+
+    pub fn type_lock_script_code_hash(&self) -> Byte32 {
+        self.type_lock_script_code_hash.clone()
     }
 
     pub fn out_point(&self) -> &OutPoint {
         &self.out_point
     }
 
-    pub fn from_block(block: Block) -> Result<Self, Error> {
+    pub fn from_block(block: BlockView) -> Result<Self, Error> {
         assert_eq!(block.header().number(), 0);
-        assert_eq!(block.transactions().len(), 1);
         let transaction = &block.transactions()[0];
-        let index = 1;
-        let cell = transaction.outputs()[index].clone();
         Ok(Self {
-            cell_output: cell,
-            out_point: OutPoint {
-                tx_hash: transaction.hash().clone(),
-                index: index as u32,
-            },
+            out_point: OutPoint::new(transaction.hash().clone(), 1u32),
             block_hash: block.header().hash().clone(),
+            dep_group_tx_hash: block.transactions()[1].hash().clone(),
+            type_lock_script_code_hash: build_genesis_type_id_script(
+                OUTPUT_INDEX_SECP256K1_BLAKE160_SIGHASH_ALL,
+            )
+            .calc_script_hash(),
         })
     }
 }

@@ -1,5 +1,5 @@
 use crate::config;
-use ckb_core::block::BlockBuilder;
+use ckb_types::{core::BlockBuilder, packed::Block};
 use rand::{
     distributions::{self as dist, Distribution as _},
     thread_rng,
@@ -90,11 +90,10 @@ pub fn spawn_run(miner_configs: Vec<MinerConfig>, target: u64) -> Vec<JoinHandle
 
 fn solve(jsonrpc: &Jsonrpc) {
     let template = jsonrpc.get_block_template(None, None, None);
-    let work_id = template.work_id.0;
-    let block_number = template.number.0;
-    let block_builder: BlockBuilder = template.into();
-    let block = block_builder.build();
-    if let Some(block_hash) = jsonrpc.submit_block(work_id.to_string(), (&block).into()) {
+    let work_id = template.work_id.value();
+    let block_number = template.number.value();
+    let block: Block = template.into();
+    if let Some(block_hash) = jsonrpc.submit_block(work_id.to_string(), block.into()) {
         ckb_logger::debug!("submit block  #{} {:#x}", block_number, block_hash);
     } else {
         ckb_logger::error!("submit block  #{} None", block_number);

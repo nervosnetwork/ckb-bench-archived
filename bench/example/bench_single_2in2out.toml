@@ -7,8 +7,8 @@ proposal_window = 10
 # block reward to provide `alice` run benchmarks.
 #
 # NOTE: We should ensure the ckb-miner is same as we configurated here.
-bank  = "<miner-private-key>"
-alice = "<miner-private-key>"
+bank  = "878c4e481db45e0e1c65c2e17bc2bfdc01b35872b008497963ee723c720246ac"
+alice = "b6211cfa8a04cf872e9f3459701a255d1eed7373dd79dadd5fbdde7160c191fb"
 
 # The rpc urls of ckb node
 rpc_urls = [ "http://127.0.0.1:8114/" ]

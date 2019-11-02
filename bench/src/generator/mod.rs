@@ -1,19 +1,21 @@
 use crate::types::{LiveCell, Personal, TaggedTransaction};
-use ckb_core::block::Block;
-use ckb_core::transaction::{CellInput, Transaction, TransactionBuilder};
-use ckb_core::Bytes;
 use ckb_hash::blake2b_256;
-use ckb_occupied_capacity::Capacity;
+use ckb_types::{
+    bytes::Bytes,
+    core::{BlockView, Capacity, TransactionView},
+    packed::CellInput,
+    prelude::*,
+    H256,
+};
 use crossbeam_channel::Sender;
-use numext_fixed_hash::H256;
 
 mod in2out2;
-mod random_fee;
-mod unresolvable;
+// mod random_fee;
+// mod unresolvable;
 
 pub use in2out2::In2Out2;
-pub use random_fee::RandomFee;
-pub use unresolvable::Unresolvable;
+// pub use random_fee::RandomFee;
+// pub use unresolvable::Unresolvable;
 
 pub trait Generator {
     fn generate(
@@ -28,7 +30,7 @@ pub trait Generator {
         alice: &Personal,
         unspent: Vec<LiveCell>,
         tx_sender: &Sender<TaggedTransaction>,
-        block: &Block,
+        block: &BlockView,
     ) -> Vec<LiveCell> {
         // Update live cell set based on new block
         let mut new_unspent_cells = alice.live_cells(block);
@@ -48,8 +50,8 @@ pub trait Generator {
 
 pub fn construct_inputs(live_cells: Vec<LiveCell>) -> (Vec<CellInput>, Capacity) {
     let input_capacities = live_cells.iter().fold(Capacity::zero(), |sum, c| {
-        sum.safe_add(c.cell_output.capacity)
-            .expect("sum input capacities")
+        let output_capacity: Capacity = c.cell_output.capacity().unpack();
+        sum.safe_add(output_capacity).expect("sum input capacities")
     });
     let inputs: Vec<_> = live_cells
         .into_iter()
@@ -58,18 +60,13 @@ pub fn construct_inputs(live_cells: Vec<LiveCell>) -> (Vec<CellInput>, Capacity)
     (inputs, input_capacities)
 }
 
-pub fn sign_transaction(raw_transaction: Transaction, sender: &Personal) -> Transaction {
-    let witness = {
-        let message = H256::from(blake2b_256(raw_transaction.hash()));
-        let signature_bytes = sender
-            .privkey()
-            .sign_recoverable(&message)
-            .unwrap()
-            .serialize();
-        vec![Bytes::from(signature_bytes)]
-    };
-    let witnesses = vec![witness.clone(), witness];
-    TransactionBuilder::from_transaction(raw_transaction)
-        .witnesses(witnesses)
-        .build()
+pub fn sign_transaction(tx: TransactionView, sender: &Personal) -> TransactionView {
+    let message = H256::from(blake2b_256(tx.hash().as_slice()));
+    let sig = sender.privkey().sign_recoverable(&message).expect("sign");
+    let witness = Bytes::from(sig.serialize()).pack();
+    let mut builder = tx.as_advanced_builder();
+    for _ in (0..tx.inputs().len()) {
+        builder = builder.witness(witness.clone());
+    }
+    builder.build()
 }

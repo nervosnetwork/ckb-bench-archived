@@ -67,7 +67,7 @@ fn main() {
                 continue;
             }
             let tx_pool_info = client.tx_pool_info();
-            if (tx_pool_info.pending.0, tx_pool_info.proposed.0) == (0, 0) {
+            if (tx_pool_info.pending.value(), tx_pool_info.proposed.value()) == (0, 0) {
                 break;
             }
         }

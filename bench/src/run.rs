@@ -1,9 +1,9 @@
 use crate::bencher::{Bencher, DefaultBencher};
 use crate::config::{Condition, Config};
-use crate::generator::{Generator, In2Out2, RandomFee, Unresolvable};
+use crate::generator::{Generator, In2Out2};
+// use crate::generator::{Generator, In2Out2, RandomFee, Unresolvable};
 use crate::types::{LiveCell, Personal};
-use ckb_core::block::Block;
-use ckb_core::BlockNumber;
+use ckb_types::core::{BlockNumber, BlockView};
 use ckb_util::Mutex;
 use crossbeam_channel::{unbounded, Receiver};
 use failure::Error;
@@ -14,7 +14,7 @@ use std::thread::spawn;
 pub fn run(
     config: Config,
     alice: Personal,
-    block_receiver: Receiver<Arc<Block>>,
+    block_receiver: Receiver<BlockView>,
     tip: Arc<Mutex<BlockNumber>>,
 ) -> Result<(), Error> {
     let Config {
@@ -46,13 +46,14 @@ pub fn run(
                 .iter()
                 .filter_map(|(c, sg)| if sg.contains(&random) { Some(c) } else { None })
                 .collect::<Vec<_>>()[0];
-            live_cells = match condition {
-                Condition::In2Out2 => In2Out2.serve(&alice, live_cells, &tx_sender, &block),
-                Condition::RandomFee => RandomFee.serve(&alice, live_cells, &tx_sender, &block),
-                Condition::Unresolvable => {
-                    Unresolvable.serve(&alice, live_cells, &tx_sender, &block)
-                }
-            };
+            live_cells = In2Out2.serve(&alice, live_cells, &tx_sender, &block);
+            // live_cells = match condition {
+            //     Condition::In2Out2 => In2Out2.serve(&alice, live_cells, &tx_sender, &block),
+            //     Condition::RandomFee => RandomFee.serve(&alice, live_cells, &tx_sender, &block),
+            //     Condition::Unresolvable => {
+            //         Unresolvable.serve(&alice, live_cells, &tx_sender, &block)
+            //     }
+            // };
         }
     });
     bencher.bench(tx_receiver);

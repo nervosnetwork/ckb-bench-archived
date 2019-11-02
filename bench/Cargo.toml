@@ -6,14 +6,13 @@ authors = ["Nervos Core Dev <dev@nervos.org>"]
 edition = "2018"
 
 [dependencies]
-numext-fixed-hash = "~0.1"
-jsonrpc-types = { git = "https://github.com/nervosnetwork/ckb.git", rev = "f77571d", package="ckb-jsonrpc-types"}
-ckb-core = { git = "https://github.com/nervosnetwork/ckb.git", rev = "f77571d" }
-ckb-occupied-capacity = { git = "https://github.com/nervosnetwork/ckb.git", rev = "f77571d", package="ckb-occupied-capacity"}
-ckb-hash = { git = "https://github.com/nervosnetwork/ckb.git", rev = "f77571d", package="ckb-hash" }
-ckb-util = { git = "https://github.com/nervosnetwork/ckb.git", rev = "f77571d" }
-ckb-logger = { git = "https://github.com/nervosnetwork/ckb.git", rev = "f77571d" }
-ckb-crypto = { git = "https://github.com/nervosnetwork/ckb.git", rev = "f77571d", package="ckb-crypto" }
+ckb-jsonrpc-types = { git = "https://github.com/nervosnetwork/ckb.git", rev = "v0.23.0"}
+ckb-types = { git = "https://github.com/nervosnetwork/ckb.git", rev = "v0.23.0" }
+ckb-hash = { git = "https://github.com/nervosnetwork/ckb.git", rev = "v0.23.0" }
+ckb-util = { git = "https://github.com/nervosnetwork/ckb.git", rev = "v0.23.0" }
+ckb-logger = { git = "https://github.com/nervosnetwork/ckb.git", rev = "v0.23.0" }
+ckb-crypto = { git = "https://github.com/nervosnetwork/ckb.git", rev = "v0.23.0" }
+ckb-chain-spec = { git = "https://github.com/nervosnetwork/ckb.git", rev = "v0.23.0" }
 
 failure = "0.1.5"
 serde = "1.0"
