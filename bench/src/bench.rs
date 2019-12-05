@@ -1,10 +1,11 @@
 use crate::config::Config;
 use crate::types::{LiveCell, Personal, Secp, MIN_SECP_CELL_CAPACITY};
-use ckb_hash::blake2b_256;
+use crate::generator::sign_transaction;
+use ckb_hash::new_blake2b;
 use ckb_types::{
     bytes::Bytes,
-    core::{Capacity, TransactionBuilder, DepType},
-    packed::{CellDep, CellInput, CellOutput, OutPoint, Transaction},
+    core::{Capacity, DepType, TransactionBuilder, TransactionView},
+    packed::{self, CellDep, CellInput, CellOutput, OutPoint, WitnessArgs},
     prelude::*,
     H256,
 };
@@ -32,7 +33,7 @@ pub fn prepare(config: &Config, bank: &Personal, alice: &Personal) -> Result<(),
         //     println!("{}", output.occupied_capacity(Capacity::bytes(data.len()).unwrap()).unwrap());
         // }
         jsonrpc
-            .send_transaction_result(transaction.into())
+            .send_transaction_result(transaction.data().into())
             .map_err(|err| format_err!("{:?}", err))?;
     }
     Ok(())
@@ -43,7 +44,7 @@ fn burn(
     receiver: &Personal,
     secp: Secp,
     outputs_count: usize,
-) -> Vec<Transaction> {
+) -> Vec<TransactionView> {
     let dep = CellDep::new_builder()
         .out_point(OutPoint::new(
             secp.out_point().tx_hash().clone(),
@@ -66,14 +67,8 @@ fn burn(
                 .output_data(Default::default())
                 .cell_dep(dep.clone())
                 .build();
-            let message = H256::from(blake2b_256(tx.hash().as_slice()));
-            let sig = sender.privkey().sign_recoverable(&message).expect("sign");
-            let witness = Bytes::from(sig.serialize()).pack();
-            tx.as_advanced_builder()
-                .witness(witness)
-                .build()
-                .data()
-                .into()
+
+            sign_transaction(tx, sender)
         })
         .collect()
 }
@@ -83,7 +78,7 @@ fn issue(
     receiver: &Personal,
     secp: Secp,
     outputs_count: usize,
-) -> Vec<Transaction> {
+) -> Vec<TransactionView> {
     let mut targets: Vec<CellOutput> = {
         (0..outputs_count)
             .map(|_| {
@@ -153,16 +148,8 @@ fn issue(
             .outputs(outputs)
             .cell_dep(dep.clone())
             .build();
-        let message = H256::from(blake2b_256(tx.hash().as_slice()));
-        let sig = sender.privkey().sign_recoverable(&message).expect("sign");
-        let witness = Bytes::from(sig.serialize()).pack();
-        transactions.push(
-            tx.as_advanced_builder()
-                .witness(witness)
-                .build()
-                .data()
-                .into(),
-        );
+
+        transactions.push(sign_transaction(tx, sender));
     }
     assert_eq!(targets.len(), 0, "No enough balance");
 

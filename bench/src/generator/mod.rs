@@ -1,9 +1,9 @@
 use crate::types::{LiveCell, Personal, TaggedTransaction};
-use ckb_hash::blake2b_256;
+use ckb_hash::{blake2b_256, new_blake2b};
 use ckb_types::{
     bytes::Bytes,
     core::{BlockView, Capacity, TransactionView},
-    packed::CellInput,
+    packed::{self, CellInput, WitnessArgs},
     prelude::*,
     H256,
 };
@@ -61,12 +61,28 @@ pub fn construct_inputs(live_cells: Vec<LiveCell>) -> (Vec<CellInput>, Capacity)
 }
 
 pub fn sign_transaction(tx: TransactionView, sender: &Personal) -> TransactionView {
-    let message = H256::from(blake2b_256(tx.hash().as_slice()));
+    let tx_hash = tx.hash();
+
+    let mut blake2b = ckb_hash::new_blake2b();
+    let mut message = [0u8; 32];
+    blake2b.update(&tx_hash.raw_data());
+    let witness_for_digest = WitnessArgs::new_builder()
+        .lock(Some(Bytes::from(vec![0u8; 65])).pack())
+        .build();
+    let witness_len = witness_for_digest.as_bytes().len() as u64;
+    blake2b.update(&witness_len.to_le_bytes());
+    blake2b.update(&witness_for_digest.as_bytes());
+    blake2b.finalize(&mut message);
+    let message = H256::from(message);
     let sig = sender.privkey().sign_recoverable(&message).expect("sign");
-    let witness = Bytes::from(sig.serialize()).pack();
-    let mut builder = tx.as_advanced_builder();
-    for _ in (0..tx.inputs().len()) {
-        builder = builder.witness(witness.clone());
-    }
-    builder.build()
+    let signed_witness = WitnessArgs::new_builder()
+        .lock(Some(Bytes::from(sig.serialize())).pack())
+        .build()
+        .as_bytes()
+        .pack();
+
+    // calculate message
+    tx.as_advanced_builder()
+        .set_witnesses(vec![signed_witness])
+        .build()
 }
