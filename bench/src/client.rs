@@ -1,6 +1,5 @@
 use crate::config::Config;
-use ckb_core::header::Header;
-use ckb_core::BlockNumber;
+use ckb_types::{core::BlockNumber, packed::Header};
 use failure::Error;
 use rpc_client::Jsonrpc;
 use std::ops::Deref;
@@ -51,7 +50,7 @@ impl Client {
                 return None;
             }
         }
-        safe.map(Into::into)
+        safe.map(|h| h.inner.into())
     }
 
     pub fn get_max_tip(&self) -> BlockNumber {

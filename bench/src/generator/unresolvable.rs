@@ -1,11 +1,12 @@
 use crate::config::Condition;
 use crate::generator::{construct_inputs, sign_transaction, Generator};
 use crate::types::{LiveCell, Personal, TaggedTransaction};
-use ckb_core::block::Block;
-use ckb_core::transaction::{CellOutput, TransactionBuilder};
-use ckb_occupied_capacity::Capacity;
+use ckb_types::{
+    core::{Capacity, TransactionBuilder},
+    packed::{Block, CellOutput},
+    H256,
+};
 use crossbeam_channel::Sender;
-use numext_fixed_hash::H256;
 
 pub struct Unresolvable;
 

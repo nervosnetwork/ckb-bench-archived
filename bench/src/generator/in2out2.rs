@@ -1,11 +1,11 @@
 use crate::config::Condition;
 use crate::generator::{construct_inputs, sign_transaction, Generator};
 use crate::types::{LiveCell, Personal, TaggedTransaction};
-use ckb_core::transaction::{CellOutput, TransactionBuilder};
-use ckb_core::Bytes;
-use ckb_occupied_capacity::Capacity;
-use numext_fixed_hash::H256;
-
+use ckb_types::{
+    core::{Capacity, TransactionBuilder},
+    packed::CellOutput,
+    prelude::*,
+};
 pub struct In2Out2;
 
 impl Generator for In2Out2 {
@@ -20,23 +20,24 @@ impl Generator for In2Out2 {
             let input_cells: Vec<_> = (0..2).map(|_| live_cells.pop().unwrap()).collect();
             let (inputs, input_capacities) = construct_inputs(input_cells);
             let outputs = {
-                let mut output = CellOutput::new(
-                    Capacity::zero(),
-                    H256::zero(),
-                    receiver.lock_script().clone(),
-                    None,
-                );
-                let mut output2 = output.clone();
-                output.capacity = output.occupied_capacity(Capacity::zero()).unwrap();
-                output2.capacity = input_capacities
-                    .safe_sub(output.capacity)
+                let builder1 = CellOutput::new_builder().lock(receiver.lock_script().clone());
+                let builder2 = CellOutput::new_builder().lock(receiver.lock_script().clone());
+
+                let output1 = builder1.build();
+                let capacity1 = output1.occupied_capacity(Capacity::zero()).unwrap();
+                let capacity2 = input_capacities
+                    .safe_sub(capacity1)
                     .expect("input capacity is enough for 2 secp outputs");
-                vec![output, output2]
+
+                vec![
+                    builder1.capacity(capacity1.pack()).build(),
+                    builder2.capacity(capacity2.pack()).build(),
+                ]
             };
             let raw_transaction = TransactionBuilder::default()
                 .inputs(inputs)
                 .outputs(outputs)
-                .outputs_data(vec![Bytes::new(), Bytes::new()])
+                .outputs_data(vec![Default::default(); 2])
                 .cell_dep(sender.cell_dep().clone())
                 .build();
             let transaction = sign_transaction(raw_transaction, sender);

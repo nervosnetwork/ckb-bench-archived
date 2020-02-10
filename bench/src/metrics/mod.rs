@@ -52,8 +52,8 @@ impl Metrics {
     fn tx_pool_info(&self) -> (usize, usize) {
         let tx_pool_info = self.jsonrpc.tx_pool_info();
         (
-            tx_pool_info.pending.0 as usize,
-            tx_pool_info.proposed.0 as usize,
+            tx_pool_info.pending.value() as usize,
+            tx_pool_info.proposed.value() as usize,
         )
     }
 
