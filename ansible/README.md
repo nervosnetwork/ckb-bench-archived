@@ -1,8 +1,6 @@
 # Ansible
 
-Setup softwares needed to run ckb bench. This creates:
-
-- CKB
+Setup softwares needed to run ckb bench.
 
 These are the instructions for setup.
 

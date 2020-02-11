@@ -2,6 +2,24 @@
 
 Creates the AWS infrastructure needed to run ckb bench.
 
+```
+              +-------+
+     +------->+ node1 |
+     |        +-------+
+     |
+     |        +-------+
++----+----+   | node2 |
+| bastion +-->+-------+
++----+----+
+     |
+     |        +-------+
+     +------->+ nodeN |
+              +-------+
+
+```
+
+`bastion` will run the bench script and send transactions to `node` which running the ckb node.
+
 These are the instructions for deploying to AWS.
 
 ## Requirements
