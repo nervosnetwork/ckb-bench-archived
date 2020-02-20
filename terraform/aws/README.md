@@ -35,7 +35,6 @@ These are the instructions for deploying to AWS.
 access_key     = "XXXXXXXXXXXXXXXXXXXX"
 secret_key     = "XXXXXXXXXXXXXXXXXXXX"
 instance_count = 2
-ssh_key        = "ssh-rsa ..."
 ```
 
 - In this directory, run terraform:
