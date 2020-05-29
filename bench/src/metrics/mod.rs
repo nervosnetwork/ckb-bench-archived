@@ -46,6 +46,11 @@ impl Metrics {
             sleep_time,
         );
 
+        ckb_logger::metric!({
+            "topic": "tps_bench",
+            "fields": { "tps": tps },
+        });
+
         latency
     }
 
