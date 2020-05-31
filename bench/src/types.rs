@@ -5,7 +5,6 @@ use ckb_chain_spec::{build_genesis_type_id_script, OUTPUT_INDEX_SECP256K1_BLAKE1
 use ckb_crypto::secp::{Privkey, Pubkey};
 use ckb_hash::blake2b_256;
 use ckb_types::{
-    bytes::Bytes,
     core::{BlockNumber, BlockView, DepType, ScriptHashType, TransactionView},
     packed::{Byte32, CellDep, CellOutput, OutPoint, Script},
     prelude::*,
@@ -14,9 +13,7 @@ use ckb_types::{
 use ckb_util::{Mutex, MutexGuard};
 use failure::Error;
 use rpc_client::Jsonrpc;
-use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::Path;
 use std::sync::Arc;
 use std::thread::{spawn, JoinHandle};
 
@@ -120,11 +117,11 @@ impl Personal {
         let pubkey = privkey
             .pubkey()
             .expect("failed to generate pubkey from privkey");
-        let address = H160::from_slice(&blake2b_256(pubkey.serialize())[0..20])
+        let address: H160 = H160::from_slice(&blake2b_256(pubkey.serialize())[0..20])
             .expect("failed to generate hash(H160) from pubkey");
         let secp = Secp::load(&notifier)?;
         let lock_script = Script::new_builder()
-            .args(Bytes::from(address.as_bytes()).pack())
+            .args(address.0.pack())
             .code_hash(secp.type_lock_script_code_hash())
             .hash_type(ScriptHashType::Type.into())
             .build();

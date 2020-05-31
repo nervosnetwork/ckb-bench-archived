@@ -1,13 +1,10 @@
 use crate::config::Config;
-use crate::types::{LiveCell, Personal, Secp, MIN_SECP_CELL_CAPACITY};
 use crate::generator::sign_transaction;
-use ckb_hash::new_blake2b;
+use crate::types::{LiveCell, Personal, Secp, MIN_SECP_CELL_CAPACITY};
 use ckb_types::{
-    bytes::Bytes,
     core::{Capacity, DepType, TransactionBuilder, TransactionView},
-    packed::{self, CellDep, CellInput, CellOutput, OutPoint, WitnessArgs},
+    packed::{CellDep, CellInput, CellOutput, OutPoint},
     prelude::*,
-    H256,
 };
 use failure::{format_err, Error};
 use rpc_client::Jsonrpc;

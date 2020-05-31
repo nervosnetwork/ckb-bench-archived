@@ -1,5 +1,5 @@
 use crate::config;
-use ckb_types::{core::BlockBuilder, packed::Block};
+use ckb_types::packed::Block;
 use rand::{
     distributions::{self as dist, Distribution as _},
     thread_rng,

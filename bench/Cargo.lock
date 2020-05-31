@@ -152,6 +152,14 @@ dependencies = [
  "byteorder",
  "either",
  "iovec",
+]
+
+[[package]]
+name = "bytes"
+version = "0.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "130aac562c0dd69c56b3b1cc8ffd2e17be31d0b6c25b61c96b76231aa23e39e1"
+dependencies = [
  "serde",
 ]
 
@@ -215,8 +223,8 @@ dependencies = [
 
 [[package]]
 name = "ckb-chain-spec"
-version = "0.25.2"
-source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.25.2#dda4ed94418dc694a096eca6de2a9ca0de8cd509"
+version = "0.32.0"
+source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.32.0#248aa88aeef2a86e78b0af04064f4e197cd4ec1a"
 dependencies = [
  "ckb-crypto",
  "ckb-dao-utils",
@@ -229,14 +237,13 @@ dependencies = [
  "ckb-types",
  "failure",
  "serde",
- "serde_derive",
  "toml",
 ]
 
 [[package]]
 name = "ckb-crypto"
-version = "0.25.2"
-source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.25.2#dda4ed94418dc694a096eca6de2a9ca0de8cd509"
+version = "0.32.0"
+source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.32.0#248aa88aeef2a86e78b0af04064f4e197cd4ec1a"
 dependencies = [
  "ckb-fixed-hash",
  "failure",
@@ -248,8 +255,8 @@ dependencies = [
 
 [[package]]
 name = "ckb-dao-utils"
-version = "0.25.2"
-source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.25.2#dda4ed94418dc694a096eca6de2a9ca0de8cd509"
+version = "0.32.0"
+source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.32.0#248aa88aeef2a86e78b0af04064f4e197cd4ec1a"
 dependencies = [
  "byteorder",
  "ckb-error",
@@ -260,18 +267,19 @@ dependencies = [
 
 [[package]]
 name = "ckb-error"
-version = "0.25.2"
-source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.25.2#dda4ed94418dc694a096eca6de2a9ca0de8cd509"
+version = "0.32.0"
+source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.32.0#248aa88aeef2a86e78b0af04064f4e197cd4ec1a"
 dependencies = [
  "ckb-occupied-capacity",
  "enum-display-derive",
  "failure",
+ "quote 1.0.5",
 ]
 
 [[package]]
 name = "ckb-fixed-hash"
-version = "0.25.2"
-source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.25.2#dda4ed94418dc694a096eca6de2a9ca0de8cd509"
+version = "0.32.0"
+source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.32.0#248aa88aeef2a86e78b0af04064f4e197cd4ec1a"
 dependencies = [
  "ckb-fixed-hash-core",
  "ckb-fixed-hash-hack",
@@ -280,8 +288,8 @@ dependencies = [
 
 [[package]]
 name = "ckb-fixed-hash-core"
-version = "0.25.2"
-source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.25.2#dda4ed94418dc694a096eca6de2a9ca0de8cd509"
+version = "0.32.0"
+source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.32.0#248aa88aeef2a86e78b0af04064f4e197cd4ec1a"
 dependencies = [
  "failure",
  "faster-hex 0.4.1",
@@ -290,8 +298,8 @@ dependencies = [
 
 [[package]]
 name = "ckb-fixed-hash-hack"
-version = "0.25.2"
-source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.25.2#dda4ed94418dc694a096eca6de2a9ca0de8cd509"
+version = "0.32.0"
+source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.32.0#248aa88aeef2a86e78b0af04064f4e197cd4ec1a"
 dependencies = [
  "ckb-fixed-hash-core",
  "proc-macro-hack",
@@ -302,29 +310,28 @@ dependencies = [
 
 [[package]]
 name = "ckb-hash"
-version = "0.25.2"
-source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.25.2#dda4ed94418dc694a096eca6de2a9ca0de8cd509"
+version = "0.32.0"
+source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.32.0#248aa88aeef2a86e78b0af04064f4e197cd4ec1a"
 dependencies = [
  "blake2b-rs",
 ]
 
 [[package]]
 name = "ckb-jsonrpc-types"
-version = "0.25.2"
-source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.25.2#dda4ed94418dc694a096eca6de2a9ca0de8cd509"
+version = "0.32.0"
+source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.32.0#248aa88aeef2a86e78b0af04064f4e197cd4ec1a"
 dependencies = [
  "ckb-types",
  "faster-hex 0.4.1",
- "jsonrpc-core 10.1.0",
+ "jsonrpc-core 14.1.0",
  "serde",
- "serde_derive",
  "serde_json",
 ]
 
 [[package]]
 name = "ckb-logger"
-version = "0.25.2"
-source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.25.2#dda4ed94418dc694a096eca6de2a9ca0de8cd509"
+version = "0.32.0"
+source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.32.0#248aa88aeef2a86e78b0af04064f4e197cd4ec1a"
 dependencies = [
  "ansi_term 0.12.1",
  "backtrace",
@@ -337,13 +344,13 @@ dependencies = [
  "regex",
  "sentry",
  "serde",
- "serde_derive",
+ "serde_json",
 ]
 
 [[package]]
 name = "ckb-occupied-capacity"
-version = "0.25.2"
-source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.25.2#dda4ed94418dc694a096eca6de2a9ca0de8cd509"
+version = "0.32.0"
+source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.32.0#248aa88aeef2a86e78b0af04064f4e197cd4ec1a"
 dependencies = [
  "ckb-occupied-capacity-core",
  "ckb-occupied-capacity-macros",
@@ -352,17 +359,16 @@ dependencies = [
 
 [[package]]
 name = "ckb-occupied-capacity-core"
-version = "0.25.2"
-source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.25.2#dda4ed94418dc694a096eca6de2a9ca0de8cd509"
+version = "0.32.0"
+source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.32.0#248aa88aeef2a86e78b0af04064f4e197cd4ec1a"
 dependencies = [
  "serde",
- "serde_derive",
 ]
 
 [[package]]
 name = "ckb-occupied-capacity-macros"
-version = "0.25.2"
-source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.25.2#dda4ed94418dc694a096eca6de2a9ca0de8cd509"
+version = "0.32.0"
+source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.32.0#248aa88aeef2a86e78b0af04064f4e197cd4ec1a"
 dependencies = [
  "ckb-occupied-capacity-core",
  "proc-macro-hack",
@@ -372,28 +378,28 @@ dependencies = [
 
 [[package]]
 name = "ckb-pow"
-version = "0.25.2"
-source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.25.2#dda4ed94418dc694a096eca6de2a9ca0de8cd509"
+version = "0.32.0"
+source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.32.0#248aa88aeef2a86e78b0af04064f4e197cd4ec1a"
 dependencies = [
  "byteorder",
+ "ckb-hash",
  "ckb-types",
  "eaglesong",
  "serde",
- "serde_derive",
 ]
 
 [[package]]
 name = "ckb-rational"
-version = "0.25.2"
-source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.25.2#dda4ed94418dc694a096eca6de2a9ca0de8cd509"
+version = "0.32.0"
+source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.32.0#248aa88aeef2a86e78b0af04064f4e197cd4ec1a"
 dependencies = [
  "numext-fixed-uint",
 ]
 
 [[package]]
 name = "ckb-resource"
-version = "0.25.2"
-source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.25.2#dda4ed94418dc694a096eca6de2a9ca0de8cd509"
+version = "0.32.0"
+source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.32.0#248aa88aeef2a86e78b0af04064f4e197cd4ec1a"
 dependencies = [
  "ckb-system-scripts",
  "ckb-types",
@@ -401,7 +407,6 @@ dependencies = [
  "includedir_codegen",
  "phf",
  "serde",
- "serde_derive",
  "tempfile",
  "walkdir",
 ]
@@ -421,11 +426,11 @@ dependencies = [
 
 [[package]]
 name = "ckb-types"
-version = "0.25.2"
-source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.25.2#dda4ed94418dc694a096eca6de2a9ca0de8cd509"
+version = "0.32.0"
+source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.32.0#248aa88aeef2a86e78b0af04064f4e197cd4ec1a"
 dependencies = [
  "bit-vec",
- "bytes",
+ "bytes 0.5.4",
  "ckb-error",
  "ckb-fixed-hash",
  "ckb-hash",
@@ -436,12 +441,13 @@ dependencies = [
  "merkle-cbt",
  "molecule",
  "numext-fixed-uint",
+ "once_cell",
 ]
 
 [[package]]
 name = "ckb-util"
-version = "0.25.2"
-source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.25.2#dda4ed94418dc694a096eca6de2a9ca0de8cd509"
+version = "0.32.0"
+source = "git+https://github.com/nervosnetwork/ckb.git?rev=v0.32.0#248aa88aeef2a86e78b0af04064f4e197cd4ec1a"
 dependencies = [
  "linked-hash-map",
  "parking_lot 0.7.1",
@@ -697,12 +703,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "348138dd23e03bb0018caef99647fb1a5befec5ff4b501991de88f09854d4c28"
 
 [[package]]
-name = "fixedbitset"
-version = "0.1.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86d4de0081402f5e88cdac65c8dcdcc73118c1a7a465e2a05f0da05843a8ea33"
-
-[[package]]
 name = "flate2"
 version = "1.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -810,7 +810,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a5b34c246847f938a410a03c5458c7fee2274436675e76d8b903c08efc29c462"
 dependencies = [
  "byteorder",
- "bytes",
+ "bytes 0.4.12",
  "fnv",
  "futures",
  "http",
@@ -855,7 +855,7 @@ version = "0.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6ccf5ede3a895d8856620237b2f02972c1bbc78d2965ad7fe8838d4a0ed41f0"
 dependencies = [
- "bytes",
+ "bytes 0.4.12",
  "fnv",
  "itoa",
 ]
@@ -866,7 +866,7 @@ version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6741c859c1b2463a423a1dbce98d418e6c3c3fc720fb0d45528657320920292d"
 dependencies = [
- "bytes",
+ "bytes 0.4.12",
  "futures",
  "http",
  "tokio-buf",
@@ -900,7 +900,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34a590ca09d341e94cddf8e5af0bbccde205d5fbc2fa3c09dd67c7f85cea59d7"
 dependencies = [
  "base64 0.9.3",
- "bytes",
+ "bytes 0.4.12",
  "futures",
  "futures-cpupool",
  "httparse",
@@ -926,7 +926,7 @@ version = "0.12.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9dbe6ed1438e1f8ad955a4701e9a944938e9519f6888d12d8558b645e247d5f6"
 dependencies = [
- "bytes",
+ "bytes 0.4.12",
  "futures",
  "futures-cpupool",
  "h2",
@@ -956,7 +956,7 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a800d6aa50af4b5850b2b0f659625ce9504df908e9733b635720483be26174f"
 dependencies = [
- "bytes",
+ "bytes 0.4.12",
  "futures",
  "hyper 0.12.35",
  "native-tls",
@@ -1096,6 +1096,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "jsonrpc-core"
+version = "14.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25525f6002338fb4debb5167a89a0b47f727a5a48418417545ad3429758b7fec"
+dependencies = [
+ "futures",
+ "log 0.4.8",
+ "serde",
+ "serde_derive",
+ "serde_json",
+]
+
+[[package]]
 name = "jsonrpc-derive"
 version = "10.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1126,7 +1139,7 @@ version = "10.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c9527f01ef25f251d64082cbefc0c6d6f367349afe6848ef908a674e06b2bdd3"
 dependencies = [
- "bytes",
+ "bytes 0.4.12",
  "globset",
  "jsonrpc-core 10.1.0",
  "lazy_static",
@@ -1315,11 +1328,12 @@ dependencies = [
 
 [[package]]
 name = "molecule"
-version = "0.4.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba0619bb93e13e12d7e04ab7a1e57f2331f37fa7412f64cf8ef49d1603e0a82a"
+checksum = "663f76cc52219e5957e2f5563cce9d89f98aa8503c9c898b5c412d97df663998"
 dependencies = [
- "bytes",
+ "bytes 0.5.4",
+ "cfg-if",
  "faster-hex 0.4.1",
 ]
 
@@ -1436,6 +1450,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9cbca9424c482ee628fa549d9c812e2cd22f1180b9222c9200fdfa6eb31aecb2"
 
 [[package]]
+name = "once_cell"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b631f7e854af39a1739f401cf34a8a013dfe09eac4fa4dba91e9768bd28168d"
+
+[[package]]
 name = "openssl"
 version = "0.10.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1467,12 +1487,6 @@ dependencies = [
  "pkg-config",
  "vcpkg",
 ]
-
-[[package]]
-name = "ordermap"
-version = "0.3.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a86ed3f5f244b372d6b1a00b72ef7f8876d0bc6a78a4c9985c53614041512063"
 
 [[package]]
 name = "owning_ref"
@@ -1510,13 +1524,10 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94c8c7923936b28d546dfd14d4472eaf34c99b14e1c973a32b3e6d4eb04298c9"
 dependencies = [
- "backtrace",
  "libc",
- "petgraph",
  "rand 0.6.5",
  "rustc_version",
  "smallvec 0.6.13",
- "thread-id",
  "winapi 0.3.8",
 ]
 
@@ -1546,16 +1557,6 @@ name = "percent-encoding"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4fd5641d01c8f18a23da7b6fe29298ff4b55afcccdf78973b24cf3175fee32e"
-
-[[package]]
-name = "petgraph"
-version = "0.4.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c3659d1ee90221741f65dd128d9998311b0e40c5d3c23a62445938214abce4f"
-dependencies = [
- "fixedbitset",
- "ordermap",
-]
 
 [[package]]
 name = "phf"
@@ -1915,7 +1916,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f88643aea3c1343c804950d7bf983bd2067f5ab59db6d613a08e05572f2714ab"
 dependencies = [
  "base64 0.10.1",
- "bytes",
+ "bytes 0.4.12",
  "cookie",
  "cookie_store",
  "encoding_rs",
@@ -2021,12 +2022,20 @@ checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
 
 [[package]]
 name = "secp256k1"
-version = "0.15.5"
+version = "0.17.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d311229f403d64002e9eed9964dfa5a0a0c1ac443344f7546bf48e916c6053a"
+checksum = "2932dc07acd2066ff2e3921a4419606b220ba6cd03a9935123856cc534877056"
+dependencies = [
+ "secp256k1-sys",
+]
+
+[[package]]
+name = "secp256k1-sys"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7ab2c26f0d3552a0f12e639ae8a64afc2e3db9c52fe32f5fc6c289d38519f220"
 dependencies = [
  "cc",
- "rand 0.6.5",
 ]
 
 [[package]]
@@ -2210,7 +2219,7 @@ version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d24114bfcceb867ca7f71a0d3fe45d45619ec47a6fbfa98cb14e14250bfa5d6d"
 dependencies = [
- "bytes",
+ "bytes 0.4.12",
 ]
 
 [[package]]
@@ -2312,17 +2321,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "thread-id"
-version = "3.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7fbf4c9d56b320106cd64fd024dadfa0be7cb4706725fc44a7d7ce952d820c1"
-dependencies = [
- "libc",
- "redox_syscall",
- "winapi 0.3.8",
-]
-
-[[package]]
 name = "thread_local"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2347,7 +2345,7 @@ version = "0.1.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a09c0b5bb588872ab2f09afa13ee6e9dac11e10a0ec9e8e3ba39a5a5d530af6"
 dependencies = [
- "bytes",
+ "bytes 0.4.12",
  "futures",
  "mio",
  "num_cpus",
@@ -2371,7 +2369,7 @@ version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fb220f46c53859a4b7ec083e41dec9778ff0b1851c0942b211edb89e0ccdc46"
 dependencies = [
- "bytes",
+ "bytes 0.4.12",
  "either",
  "futures",
 ]
@@ -2382,7 +2380,7 @@ version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25b2998660ba0e70d18684de5d06b70b70a3a747469af9dea7618cc59e75976b"
 dependencies = [
- "bytes",
+ "bytes 0.4.12",
  "futures",
  "tokio-io",
 ]
@@ -2393,7 +2391,7 @@ version = "0.1.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aeeffbbb94209023feaef3c196a41cbcdafa06b4a6f893f68779bb5e53796f71"
 dependencies = [
- "bytes",
+ "bytes 0.4.12",
  "futures",
  "iovec",
  "log 0.4.8",
@@ -2443,7 +2441,7 @@ version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57fc868aae093479e3131e3d165c93b1c7474109d13c90ec0dda2a1bbfff0674"
 dependencies = [
- "bytes",
+ "bytes 0.4.12",
  "futures",
  "log 0.4.8",
 ]
@@ -2510,7 +2508,7 @@ version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "98df18ed66e3b72e742f185882a9e201892407957e45fbff8da17ae7a7c51f72"
 dependencies = [
- "bytes",
+ "bytes 0.4.12",
  "futures",
  "iovec",
  "mio",
@@ -2553,7 +2551,7 @@ version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2a0b10e610b39c38b031a2fcab08e4b82f16ece36504988dcbd81dbba650d82"
 dependencies = [
- "bytes",
+ "bytes 0.4.12",
  "futures",
  "log 0.4.8",
  "mio",
@@ -2568,7 +2566,7 @@ version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5076db410d6fdc6523df7595447629099a1fdc47b3d9f896220780fa48faf798"
 dependencies = [
- "bytes",
+ "bytes 0.4.12",
  "futures",
  "iovec",
  "libc",

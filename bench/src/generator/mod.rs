@@ -1,9 +1,8 @@
 use crate::types::{LiveCell, Personal, TaggedTransaction};
-use ckb_hash::{blake2b_256, new_blake2b};
 use ckb_types::{
     bytes::Bytes,
     core::{BlockView, Capacity, TransactionView},
-    packed::{self, CellInput, WitnessArgs},
+    packed::{CellInput, WitnessArgs},
     prelude::*,
     H256,
 };

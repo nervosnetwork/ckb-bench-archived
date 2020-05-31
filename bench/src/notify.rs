@@ -3,7 +3,6 @@ use crate::config::Config;
 use ckb_logger::debug;
 use ckb_types::{
     core::{BlockNumber, BlockView},
-    packed::Block,
     prelude::*,
 };
 use ckb_util::Mutex;

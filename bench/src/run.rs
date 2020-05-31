@@ -1,7 +1,6 @@
 use crate::bencher::{Bencher, DefaultBencher};
-use crate::config::{Condition, Config};
+use crate::config::Config;
 use crate::generator::{Generator, In2Out2};
-// use crate::generator::{Generator, In2Out2, RandomFee, Unresolvable};
 use crate::types::{LiveCell, Personal};
 use ckb_types::core::{BlockNumber, BlockView};
 use ckb_util::Mutex;
@@ -42,7 +41,7 @@ pub fn run(
         let mut rng = thread_rng();
         while let Ok(block) = block_receiver.recv() {
             let random = rng.gen_range(0, sum);
-            let condition = conditions
+            let _condition = conditions
                 .iter()
                 .filter_map(|(c, sg)| if sg.contains(&random) { Some(c) } else { None })
                 .collect::<Vec<_>>()[0];
