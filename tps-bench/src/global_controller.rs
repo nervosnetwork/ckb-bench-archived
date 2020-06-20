@@ -2,9 +2,11 @@ use crate::config::Config;
 use crate::controller::Controller;
 use crate::rpc::Jsonrpc;
 use std::collections::HashMap;
+use std::ops::Range;
 use std::time::{Duration, Instant};
 
 const PRINT_TABLE_EVERY: Duration = Duration::from_secs(10);
+const EVAL_WINDOW: Range<u64> = 50..51;
 
 pub struct GlobalController {
     rpc: Jsonrpc,
@@ -42,9 +44,8 @@ impl Controller for GlobalController {
 
 impl GlobalController {
     fn print_table(&self) {
-        let eval_window = 3..10; // TODO
         let mut final_tps = 0f64;
-        for gap in eval_window {
+        for gap in EVAL_WINDOW {
             let start_number = self.end_number.saturating_sub(gap);
             if start_number == 0 {
                 break;
