@@ -4,8 +4,11 @@ extern crate clap;
 use crate::command::{commandline, CommandLine};
 use crate::config::{Config, Url};
 use crate::controller::Controller;
+use crate::genesis_info::{global_genesis_info, init_global_genesis_info, GenesisInfo};
 use crate::global_controller::GlobalController;
+use crate::miner::Miner;
 use crate::rpc::Jsonrpc;
+use crate::util::{lock_hash, lock_script};
 use ckb_crypto::secp::{Privkey, Pubkey};
 use ckb_hash::blake2b_256;
 use ckb_jsonrpc_types::Status;
@@ -24,10 +27,12 @@ use std::sync::Mutex;
 use std::thread::{sleep, spawn};
 use std::time::{Duration, Instant};
 
+pub mod miner;
 pub mod util;
 pub mod command;
 pub mod config;
 pub mod controller;
+pub mod genesis_info;
 pub mod global_controller;
 pub mod local_controller;
 pub mod rpc;
@@ -87,10 +92,8 @@ lazy_static! {
     // The `[block_assembler]` configured in ckb node ckb.toml
     static ref CKB_BLOCK_ASSMEBLER_LOCK_HASH: Mutex<Byte32> = Mutex::new(Default::default());
 
-    static ref GENESIS_INFO: Mutex<GenesisInfo> = Mutex::new(GenesisInfo::default());
     static ref SIGHASH_ALL_DEP_GROUP_TX_HASH: Byte32 = {
-        let genesis_info = GENESIS_INFO.lock().unwrap();
-        genesis_info.dep_group_tx_hash()
+        global_genesis_info().dep_group_tx_hash()
     };
     static ref SIGHASH_ALL_CELL_DEP_OUT_POINT: OutPoint = OutPoint::new_builder()
         .tx_hash(SIGHASH_ALL_DEP_GROUP_TX_HASH.clone())
@@ -104,15 +107,15 @@ lazy_static! {
 
 fn main() {
     match commandline() {
-        CommandLine::MineMode(config, blocks) => mine_mode(&config, blocks),
+        CommandLine::MineMode(config, blocks) => Miner::new(config).generate_blocks(blocks),
         CommandLine::BenchMode(config, duration) => {
-            init_genesis_info(&config);
-            spawn_miner(&config);
+            init_global_genesis_info(&config);
+            Miner::new(config.clone()).async_run();
             bench_mode(&config, duration)
         }
         CommandLine::InitBenchAccount(config) => {
-            init_genesis_info(&config);
-            spawn_miner(&config);
+            init_global_genesis_info(&config);
+            Miner::new(config.clone()).async_run();
 
             let miner_privkey = match Privkey::from_str(&config.private_key) {
                 Ok(privkey) => {
@@ -140,59 +143,6 @@ fn main() {
                 init_bench_account(&config, &miner_privkey, &BENCH_ACCOUNT_PRIVATE_KEY, delta);
                 c += delta;
             }
-        }
-    }
-}
-
-// - Initialize the global variable `GENESIS_INFO`
-// - Initialize the configured miner in ckb
-fn init_genesis_info(config: &Config) {
-    let url = config.node_urls.first().expect("checked");
-    let rpc = match Jsonrpc::connect(url.as_str()) {
-        Ok(rpc) => rpc,
-        Err(err) => prompt_and_exit!("Jsonrpc::connect({}) error: {}", url.as_str(), err),
-    };
-    match rpc.get_block_by_number(0) {
-        Some(genesis_block) => {
-            let genesis_block: core::BlockView = genesis_block.into();
-            let mut genesis_info = GENESIS_INFO.lock().unwrap();
-            *genesis_info = GenesisInfo::from(genesis_block);
-        }
-        None => prompt_and_exit!(
-            "Jsonrpc::get_block_by_number(0) from {} error: return None",
-            url.as_str()
-        ),
-    }
-
-    let mut block_assembler_lock_hash = CKB_BLOCK_ASSMEBLER_LOCK_HASH.lock().unwrap();
-    *block_assembler_lock_hash = rpc
-        .get_block_template(None, None, None)
-        .cellbase
-        .data
-        .outputs
-        .get(0)
-        .unwrap()
-        .lock
-        .code_hash
-        .0
-        .pack();
-}
-
-fn mine_mode(config: &Config, blocks: u64) {
-    let url = config.node_urls.first().expect("checked");
-    let rpc = match Jsonrpc::connect(url.as_str()) {
-        Ok(rpc) => rpc,
-        Err(err) => prompt_and_exit!("Jsonrpc::connect({}) error: {}", url.as_str(), err),
-    };
-    for _ in 0..blocks {
-        let template = rpc.get_block_template(None, None, None);
-        let work_id = template.work_id.value();
-        let block_number = template.number.value();
-        let block: Block = template.into();
-        if let Some(block_hash) = rpc.submit_block(work_id.to_string(), block.into()) {
-            println!("submit block  #{} {:#x}", block_number, block_hash);
-        } else {
-            eprintln!("submit block  #{} None", block_number);
         }
     }
 }
@@ -275,34 +225,6 @@ fn filter_utxos_from_chain(
         .into_iter()
         .map(|(out_point, output)| UTXO { out_point, output })
         .collect()
-}
-
-fn spawn_miner(config: &Config) {
-    let url = &config.node_urls[0];
-    let rpc = match Jsonrpc::connect(url.as_str()) {
-        Ok(rpc) => rpc,
-        Err(err) => prompt_and_exit!("Jsonrpc::connect({}) error: {}", url.as_str(), err),
-    };
-
-    // Ensure the pending and proposed transactions be committed
-    for _ in 0..20 {
-        mine_block(&rpc);
-    }
-    spawn(move || loop {
-        sleep(BLOCK_TIME);
-        mine_block(&rpc);
-    });
-}
-
-fn mine_block(rpc: &Jsonrpc) {
-    let template = rpc.get_block_template(None, None, None);
-    let work_id = template.work_id.value();
-    let _block_number = template.number.value();
-    let block: Block = template.into();
-
-    if let Some(_block_hash) = rpc.submit_block(work_id.to_string(), block.into()) {
-        // TODO println!("submit_block  #{} {:#x}", block_number, block_hash);
-    }
 }
 
 fn bench_mode(config: &Config, duration: Duration) {
@@ -491,20 +413,6 @@ fn construct_bench_transaction(config: &Config, utxos: Vec<UTXO>) -> core::Trans
     sign_transaction(&BENCH_ACCOUNT_PRIVATE_KEY, raw_transaction)
 }
 
-fn lock_hash(privkey: &Privkey) -> Byte32 {
-    lock_script(privkey).calc_script_hash()
-}
-
-fn lock_script(privkey: &Privkey) -> Script {
-    let pubkey = privkey.pubkey().unwrap();
-    let address: H160 = H160::from_slice(&blake2b_256(pubkey.serialize())[0..20]).unwrap();
-    Script::new_builder()
-        .args(address.0.pack())
-        .code_hash(SIGHASH_ALL_TYPE_HASH.pack())
-        .hash_type(ScriptHashType::Type.into())
-        .build()
-}
-
 // fn transfer_all(config: &Config, sender: &Privkey, receiver: &Privkey) {
 // TODO complete this function
 // }
@@ -614,35 +522,6 @@ fn sign_transaction(privkey: &Privkey, tx: core::TransactionView) -> core::Trans
 // TODO estimate fee MIN_FEE_RATE
 fn estimate_fee(config: &Config) -> u64 {
     1000 * config.transaction_type.required() as u64
-}
-
-pub struct GenesisInfo {
-    block: core::BlockView,
-}
-
-impl From<core::BlockView> for GenesisInfo {
-    fn from(block: core::BlockView) -> Self {
-        assert_eq!(block.number(), 0);
-        Self { block }
-    }
-}
-
-impl Default for GenesisInfo {
-    fn default() -> Self {
-        Self {
-            block: core::BlockBuilder::default().build(),
-        }
-    }
-}
-
-impl GenesisInfo {
-    pub fn dep_group_tx_hash(&self) -> Byte32 {
-        let dep_group_tx = self
-            .block
-            .transaction(DEP_GROUP_TRANSACTION_INDEX)
-            .expect("genesis block should contain at least 2 transactions");
-        dep_group_tx.hash()
-    }
 }
 
 // - The structure of transaction
