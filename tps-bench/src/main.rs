@@ -9,6 +9,7 @@ use crate::global_controller::GlobalController;
 use crate::miner::Miner;
 use crate::rpc::Jsonrpc;
 use crate::util::{lock_hash, lock_script};
+use crate::utxo::UTXO;
 use ckb_crypto::secp::{Privkey, Pubkey};
 use ckb_hash::blake2b_256;
 use ckb_jsonrpc_types::Status;
@@ -36,6 +37,7 @@ pub mod genesis_info;
 pub mod global_controller;
 pub mod local_controller;
 pub mod rpc;
+pub mod utxo;
 
 /// Bench Account Info, type `ckb-cli util key-info <privkey-path>` to generate the account info,
 ///
@@ -147,36 +149,6 @@ fn main() {
     }
 }
 
-#[derive(Debug)]
-pub struct UTXO {
-    output: CellOutput,
-    out_point: OutPoint,
-}
-
-impl UTXO {
-    pub fn new(output: CellOutput, out_point: OutPoint) -> Self {
-        Self { output, out_point }
-    }
-
-    pub fn output(&self) -> &CellOutput {
-        &self.output
-    }
-
-    pub fn out_point(&self) -> &OutPoint {
-        &self.out_point
-    }
-
-    pub fn capacity(&self) -> u64 {
-        self.output.capacity().unpack()
-    }
-
-    pub fn as_previous_input(&self) -> CellInput {
-        CellInput::new_builder()
-            .previous_output(self.out_point().clone())
-            .build()
-    }
-}
-
 // TODO handle un-matured utxos
 fn filter_utxos_from_block(lock_hash: &Byte32, block: &core::BlockView) -> Vec<UTXO> {
     let mut utxos = Vec::new();
@@ -191,8 +163,7 @@ fn filter_utxos_from_block(lock_hash: &Byte32, block: &core::BlockView) -> Vec<U
                 .tx_hash(transaction.hash())
                 .index(index.pack())
                 .build();
-            let utxo = UTXO { output, out_point };
-            utxos.push(utxo);
+            utxos.push(UTXO::new(output, out_point));
         }
     }
     utxos
@@ -213,7 +184,7 @@ fn filter_utxos_from_chain(
             .expect("get_block_by_number")
             .into();
         for utxo in filter_utxos_from_block(lock_hash, &block) {
-            utxos.insert(utxo.out_point, utxo.output);
+            utxos.insert(utxo.out_point().clone(), utxo.output().clone());
         }
         for transaction in block.transactions() {
             for input_out_point in transaction.input_pts_iter() {
@@ -223,7 +194,7 @@ fn filter_utxos_from_chain(
     }
     utxos
         .into_iter()
-        .map(|(out_point, output)| UTXO { out_point, output })
+        .map(|(out_point, output)| UTXO::new(output, out_point))
         .collect()
 }
 
