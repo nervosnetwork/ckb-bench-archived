@@ -176,11 +176,14 @@ impl Account {
                 last_print = Instant::now();
                 println!("transfer_forever, sent: {}", sent);
             }
+
+            input_total_capacity = 0;
             let raw_transaction =
                 construct_unsigned_transaction(&recipient, inputs.split_off(0), outputs_count);
             let signed_transaction = sign_transaction(&self, raw_transaction);
             if let Err(err) = rpc.send_transaction_result(signed_transaction.data().into()) {
-                eprintln!("rpc.send_transaction_result: {:?}", err);
+                let message = format!("rpc.send_transaction_result: {:?}", err);
+                panic!(message)
             }
 
             if duration.map(|d| start_time.elapsed() > d).unwrap_or(false) {
