@@ -225,5 +225,5 @@ impl Account {
 // Controller(receiver: 其它人 或者 自己)，如果是自己，那可能是 alice 给自己转；如果是其它人，那可能是 miner 给 alice 转；
 
 fn is_matured(tip_number: BlockNumber, number_and_utxo: &(BlockNumber, UTXO)) -> bool {
-    number_and_utxo.0 + 1800 > tip_number
+     tip_number > number_and_utxo.0 + 1800
 }
