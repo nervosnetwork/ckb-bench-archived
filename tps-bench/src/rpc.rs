@@ -1,6 +1,6 @@
 use ckb_jsonrpc_types::{
     Block, BlockNumber, BlockTemplate, BlockView, CellOutputWithOutPoint, CellWithStatus,
-    ChainInfo, DryRunResult, HeaderView, Node, OutPoint, PeerState, Transaction,
+    ChainInfo, DryRunResult, HeaderView, LocalNode, OutPoint, PeerState, RemoteNode, Transaction,
     TransactionWithStatus, TxPoolInfo, Uint64, Version,
 };
 use ckb_types::{
@@ -136,7 +136,7 @@ impl Jsonrpc {
             .into()
     }
 
-    pub fn local_node_info(&self) -> Node {
+    pub fn local_node_info(&self) -> LocalNode {
         self.inner
             .lock()
             .local_node_info()
@@ -144,7 +144,7 @@ impl Jsonrpc {
             .expect("rpc call local_node_info")
     }
 
-    pub fn get_peers(&self) -> Vec<Node> {
+    pub fn get_peers(&self) -> Vec<RemoteNode> {
         self.inner
             .lock()
             .get_peers()
@@ -252,8 +252,8 @@ jsonrpc_client!(pub struct Inner {
     ) -> RpcRequest<Vec<CellOutputWithOutPoint>>;
     pub fn get_live_cell(&mut self, _out_point: OutPoint) -> RpcRequest<CellWithStatus>;
     pub fn get_tip_block_number(&mut self) -> RpcRequest<BlockNumber>;
-    pub fn local_node_info(&mut self) -> RpcRequest<Node>;
-    pub fn get_peers(&mut self) -> RpcRequest<Vec<Node>>;
+    pub fn local_node_info(&mut self) -> RpcRequest<LocalNode>;
+    pub fn get_peers(&mut self) -> RpcRequest<Vec<RemoteNode>>;
     pub fn get_block_template(
         &mut self,
         bytes_limit: Option<Uint64>,

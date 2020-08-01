@@ -56,10 +56,16 @@ impl Account {
         let mut unmatureds = Vec::new();
         let mut utxoset: HashMap<OutPoint, CellOutput> = HashMap::default();
         for number in 0..=until_number {
+            if number % 100 == 0 {
+                println!("{:?} pull block {}", Instant::now(), number);
+            }
+
+            let a = Instant::now();
             let block: core::BlockView = rpc
                 .get_block_by_number(number)
                 .expect("get_block_by_number")
                 .into();
+            println!("bilibili rpc {:?}", a.elapsed().as_millis());
 
             let (matured, unmatured) = self.get_owned_utxos(&block);
             // Add newly UTXOs
@@ -75,6 +81,7 @@ impl Account {
             for utxo in unmatured {
                 unmatureds.push((block.number(), utxo));
             }
+            println!("bilibili total {:?}", a.elapsed());
         }
 
         (

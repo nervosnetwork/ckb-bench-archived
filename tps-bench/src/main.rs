@@ -125,7 +125,9 @@ fn main() {
             let bencher = Account::new(&config.bencher_private_key);
             let rpcs = connect_jsonrpcs(&config.node_urls);
 
-            miner.async_mine();
+            if config.start_miner {
+                miner.async_mine();
+            }
 
             if miner.lock_script() != bencher.lock_script() {
                 let _ = run_account_threads(
@@ -133,7 +135,7 @@ fn main() {
                     bencher.clone(),
                     rpcs[0].clone(),
                     config.transaction_type,
-                    None,
+                    duration,
                 );
             }
             run_account_threads(
@@ -141,7 +143,7 @@ fn main() {
                 bencher.clone(),
                 rpcs[0].clone(),
                 config.transaction_type,
-                None,
+                duration,
             )
             .join()
             .unwrap();

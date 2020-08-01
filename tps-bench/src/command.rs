@@ -7,7 +7,7 @@ pub const INIT_BENCH_ACCOUNT_SUBCOMMAND: &str = "init_bench_account";
 
 pub enum CommandLine {
     MineMode(Config, u64 /* blocks */),
-    BenchMode(Config, Duration /* duration */),
+    BenchMode(Config, Option<Duration> /* duration */),
 }
 
 pub fn commandline() -> CommandLine {
@@ -31,8 +31,8 @@ pub fn commandline() -> CommandLine {
             clap::SubCommand::with_name(BENCH_SUBCOMMAND)
                 .about("start bencher and continuously send transactions for the duration")
                 .arg(
-                    clap::Arg::from_usage("--seconds <NUMBER> 'the seconds to bench'")
-                        .required(true)
+                    clap::Arg::from_usage("--seconds <NUMBER> 'the seconds to bench, default and 0 represent forever'")
+                        .required(false)
                         .validator(|s| s.parse::<u64>().map(|_| ()).map_err(|err| err.to_string())),
                 ),
         )
@@ -60,14 +60,16 @@ pub fn commandline() -> CommandLine {
             CommandLine::MineMode(config, blocks)
         }
         (BENCH_SUBCOMMAND, Some(options)) => {
-            let str = options
-                .value_of("seconds")
-                .expect("clap arg option `required(true)` checked");
+            let str = options.value_of("seconds").unwrap_or("0");
             let seconds = str
                 .parse::<u64>()
                 .expect("clap arg option `validator` checked");
-            let duration = Duration::from_secs(seconds);
-            CommandLine::BenchMode(config, duration)
+            if seconds == 0 {
+                CommandLine::BenchMode(config, None)
+            } else {
+                let duration = Duration::from_secs(seconds);
+                CommandLine::BenchMode(config, Some(duration))
+            }
         }
         (subcommand, options) => {
             prompt_and_exit!(
