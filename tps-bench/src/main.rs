@@ -161,7 +161,13 @@ fn run_account_threads(
     let (utxo_sender, utxo_receiver) = unbounded();
     let cursor_number = rpc.get_tip_block_number();
 
+    println!("start pull_until");
     let (matureds, mut unmatureds) = sender.pull_until(&rpc, cursor_number);
+    println!(
+        "end pull_until, matured: {}, unmatured: {}",
+        matureds.len(),
+        unmatureds.len()
+    );
     matureds.into_iter().for_each(|utxo| {
         utxo_sender.send(utxo).unwrap();
     });

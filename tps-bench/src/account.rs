@@ -53,19 +53,13 @@ impl Account {
         rpc: &Jsonrpc,
         until_number: BlockNumber,
     ) -> (Vec<UTXO>, Vec<(BlockNumber, UTXO)>) {
-        let mut unmatureds = Vec::new();
+        let mut unmatureds: HashMap<OutPoint, (BlockNumber, CellOutput)> = HashMap::default();
         let mut utxoset: HashMap<OutPoint, CellOutput> = HashMap::default();
         for number in 0..=until_number {
-            if number % 100 == 0 {
-                println!("{:?} pull block {}", Instant::now(), number);
-            }
-
-            let a = Instant::now();
             let block: core::BlockView = rpc
                 .get_block_by_number(number)
                 .expect("get_block_by_number")
                 .into();
-            println!("bilibili rpc {:?}", a.elapsed().as_millis());
 
             let (matured, unmatured) = self.get_owned_utxos(&block);
             // Add newly UTXOs
@@ -76,12 +70,15 @@ impl Account {
             for transaction in block.transactions() {
                 for input_out_point in transaction.input_pts_iter() {
                     utxoset.remove(&input_out_point);
+                    unmatureds.remove(&input_out_point);
                 }
             }
             for utxo in unmatured {
-                unmatureds.push((block.number(), utxo));
+                unmatureds.insert(
+                    utxo.out_point().clone(),
+                    (block.number(), utxo.output().clone()),
+                );
             }
-            println!("bilibili total {:?}", a.elapsed());
         }
 
         (
@@ -89,7 +86,10 @@ impl Account {
                 .into_iter()
                 .map(|(out_point, output)| UTXO::new(output, out_point))
                 .collect(),
-            unmatureds,
+            unmatureds
+                .into_iter()
+                .map(|(out_point, (number, output))| (number, UTXO::new(output, out_point)))
+                .collect(),
         )
     }
 
@@ -112,6 +112,13 @@ impl Account {
                     .into();
 
                 let (matured, unmatured) = self.get_owned_utxos(&block);
+                println!(
+                    "pull_forever, block: {}, matured: {}, unmatured: {}, total_unmatured: {}",
+                    number,
+                    matured.len(),
+                    unmatured.len(),
+                    unmatureds.len()
+                );
 
                 for utxo in matured {
                     if utxo_sender.send(utxo).is_err() {
@@ -152,6 +159,8 @@ impl Account {
             outputs_count * MIN_SECP_CELL_CAPACITY + estimate_fee(outputs_count);
         let (mut inputs, mut input_total_capacity) = (Vec::new(), 0);
 
+        let mut sent = 0;
+        let mut last_print = Instant::now();
         while let Ok(utxo) = utxo_receiver.recv() {
             input_total_capacity += utxo.capacity();
             inputs.push(utxo);
@@ -160,10 +169,17 @@ impl Account {
                 continue;
             }
 
+            sent += 1;
+            if last_print.elapsed() > Duration::from_secs(5) {
+                last_print = Instant::now();
+                println!("transfer_forever, sent: {}", sent);
+            }
             let raw_transaction =
                 construct_unsigned_transaction(&recipient, inputs.split_off(0), outputs_count);
             let signed_transaction = sign_transaction(&self, raw_transaction);
-            let _ = rpc.send_transaction(signed_transaction.data().into());
+            if let Err(err) = rpc.send_transaction_result(signed_transaction.data().into()) {
+                eprintln!("rpc.send_transaction_result: {:?}", err);
+            }
 
             if duration.map(|d| start_time.elapsed() > d).unwrap_or(false) {
                 break;
