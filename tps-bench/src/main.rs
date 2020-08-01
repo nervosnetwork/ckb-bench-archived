@@ -157,7 +157,7 @@ fn run_account_threads(
     transaction_type: TransactionType,
     duration: Option<Duration>,
 ) -> JoinHandle<()> {
-    let (utxo_sender, utxo_receiver) = unbounded();
+    let (utxo_sender, utxo_receiver) = bounded(2000);
     let cursor_number = rpc.get_tip_block_number();
 
     println!("start pull_until");
