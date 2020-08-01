@@ -224,5 +224,5 @@ impl Account {
 }
 
 fn is_matured(tip_number: BlockNumber, number_and_utxo: &(BlockNumber, UTXO)) -> bool {
-    tip_number > number_and_utxo.0 + 1800 * 4
+    tip_number > number_and_utxo.0 + 1800 * 5
 }
