@@ -8,7 +8,6 @@ pub const INIT_BENCH_ACCOUNT_SUBCOMMAND: &str = "init_bench_account";
 pub enum CommandLine {
     MineMode(Config, u64 /* blocks */),
     BenchMode(Config, Duration /* duration */),
-    InitBenchAccount(Config),
 }
 
 pub fn commandline() -> CommandLine {
@@ -70,7 +69,6 @@ pub fn commandline() -> CommandLine {
             let duration = Duration::from_secs(seconds);
             CommandLine::BenchMode(config, duration)
         }
-        (INIT_BENCH_ACCOUNT_SUBCOMMAND, _) => CommandLine::InitBenchAccount(config),
         (subcommand, options) => {
             prompt_and_exit!(
                 "unsupported subcommand: `{}`, options: {:?}",

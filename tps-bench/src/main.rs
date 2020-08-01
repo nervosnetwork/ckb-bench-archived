@@ -1,14 +1,16 @@
 #[macro_use]
 extern crate clap;
 
+use crate::account::Account;
 use crate::command::{commandline, CommandLine};
-use crate::config::{Config, Url};
+use crate::config::{Config, TransactionType, Url};
 use crate::controller::Controller;
 use crate::genesis_info::{global_genesis_info, init_global_genesis_info, GenesisInfo};
 use crate::global_controller::GlobalController;
 use crate::miner::Miner;
 use crate::rpc::Jsonrpc;
-use crate::util::{lock_hash, lock_script};
+use crate::transfer::sign_transaction;
+use crate::util::estimate_fee;
 use crate::utxo::UTXO;
 use ckb_crypto::secp::{Privkey, Pubkey};
 use ckb_hash::blake2b_256;
@@ -25,11 +27,13 @@ use std::collections::HashMap;
 use std::mem;
 use std::str::FromStr;
 use std::sync::Mutex;
-use std::thread::{sleep, spawn};
+use std::thread::{sleep, spawn, JoinHandle};
 use std::time::{Duration, Instant};
 
 pub mod miner;
+pub mod transfer;
 pub mod util;
+pub mod account;
 pub mod command;
 pub mod config;
 pub mod controller;
@@ -109,226 +113,66 @@ lazy_static! {
 
 fn main() {
     match commandline() {
-        CommandLine::MineMode(config, blocks) => Miner::new(config).generate_blocks(blocks),
+        CommandLine::MineMode(config, blocks) => {
+            init_global_genesis_info(&config);
+
+            let miner = Miner::new(config.clone(), &config.miner_private_key);
+            miner.generate_blocks(blocks)
+        }
         CommandLine::BenchMode(config, duration) => {
             init_global_genesis_info(&config);
-            Miner::new(config.clone()).async_run();
-            bench_mode(&config, duration)
-        }
-        CommandLine::InitBenchAccount(config) => {
-            init_global_genesis_info(&config);
-            Miner::new(config.clone()).async_run();
 
-            let miner_privkey = match Privkey::from_str(&config.private_key) {
-                Ok(privkey) => {
-                    let configured_miner_lock_hash = lock_hash(&privkey);
-                    let block_assembler_lock_hash = CKB_BLOCK_ASSMEBLER_LOCK_HASH.lock().unwrap();
-                    if configured_miner_lock_hash != *block_assembler_lock_hash {
-                        println!(
-                            "[WARN] configured miner privkey: {}, lock_hash: {}",
-                            config.private_key, configured_miner_lock_hash
-                        );
-                        println!(
-                            "[WARN] CKB_BLOCK_ASSMEBLER_LOCK_HASH: {}",
-                            configured_miner_lock_hash
-                        );
-                    }
-                    privkey
-                }
-                Err(err) => prompt_and_exit!("invalid privkey {}: {:?}", config.private_key, err),
-            };
+            let miner = Miner::new(config.clone(), &config.miner_private_key);
+            let bencher = Account::new(&config.bencher_private_key);
+            let rpcs = connect_jsonrpcs(&config.node_urls);
 
-            let count = config.transaction_count as usize * config.transaction_type.required();
-            let mut c = 0;
-            while c < count {
-                let delta = ::std::cmp::min(count - c, 1000);
-                init_bench_account(&config, &miner_privkey, &BENCH_ACCOUNT_PRIVATE_KEY, delta);
-                c += delta;
+            miner.async_mine();
+
+            if miner.lock_script() != bencher.lock_script() {
+                let _ = run_account_threads(
+                    miner.account().clone(),
+                    bencher.clone(),
+                    rpcs[0].clone(),
+                    config.transaction_type,
+                    None,
+                );
             }
+            run_account_threads(
+                bencher.clone(),
+                bencher.clone(),
+                rpcs[0].clone(),
+                config.transaction_type,
+                None,
+            )
+            .join()
+            .unwrap();
         }
     }
 }
 
-// TODO handle un-matured utxos
-fn filter_utxos_from_block(lock_hash: &Byte32, block: &core::BlockView) -> Vec<UTXO> {
-    let mut utxos = Vec::new();
-    for (_tx_index, transaction) in block.transactions().into_iter().enumerate() {
-        for (index, output) in transaction.outputs().into_iter().enumerate() {
-            let output: CellOutput = output;
-            if lock_hash != &output.lock().calc_script_hash() {
-                continue;
-            }
-
-            let out_point = OutPoint::new_builder()
-                .tx_hash(transaction.hash())
-                .index(index.pack())
-                .build();
-            utxos.push(UTXO::new(output, out_point));
-        }
-    }
-    utxos
-}
-
-// Search the blockchain `[from_number, to_number]` and return the live utxos owned by `privkey`
-fn filter_utxos_from_chain(
-    lock_hash: &Byte32,
-    rpc: &Jsonrpc,
-    from_number: u64,
-    to_number: u64,
-) -> Vec<UTXO> {
-    #[allow(clippy::mutable_key_type)]
-    let mut utxos: HashMap<OutPoint, CellOutput> = HashMap::default();
-    for number in from_number..=to_number {
-        let block: core::BlockView = rpc
-            .get_block_by_number(number)
-            .expect("get_block_by_number")
-            .into();
-        for utxo in filter_utxos_from_block(lock_hash, &block) {
-            utxos.insert(utxo.out_point().clone(), utxo.output().clone());
-        }
-        for transaction in block.transactions() {
-            for input_out_point in transaction.input_pts_iter() {
-                utxos.remove(&input_out_point);
-            }
-        }
-    }
-    utxos
-        .into_iter()
-        .map(|(out_point, output)| UTXO::new(output, out_point))
-        .collect()
-}
-
-fn bench_mode(config: &Config, duration: Duration) {
-    let start_time = Instant::now();
-    let (block_sender, block_receiver) = unbounded();
+fn run_account_threads(
+    sender: Account,
+    recipient: Account,
+    rpc: Jsonrpc,
+    transaction_type: TransactionType,
+    duration: Option<Duration>,
+) -> JoinHandle<()> {
     let (utxo_sender, utxo_receiver) = unbounded();
-    let (transaction_sender, transaction_receiver) = unbounded();
+    let cursor_number = rpc.get_tip_block_number();
 
-    // Walk through the chain from genesis to tip, filter the owned utxos
-    let rpcs = connect_jsonrpcs(&config.node_urls);
-    let tip_number = rpcs
-        .iter()
-        .map(|rpc| rpc.get_tip_block_number())
-        .max()
-        .unwrap();
-    let utxos = filter_utxos_from_chain(&BENCH_ACCOUNT_LOCK_HASH, &rpcs[0], 0, tip_number);
-    utxos
-        .into_iter()
-        .for_each(|utxo| utxo_sender.send(utxo).unwrap());
-
-    // A thread for monitoring new blocks
-    let mut current_number = tip_number;
-    let config_clone = config.clone();
-    spawn(move || {
-        let config = config_clone;
-        let rpcs = connect_jsonrpcs(&config.node_urls);
-
-        loop {
-            let zero_hash: Byte32 = h256!("0x0").0.pack();
-            let mut new_hash = zero_hash.clone();
-            for rpc in rpcs.iter() {
-                match rpc.get_block_by_number(current_number + 1) {
-                    Some(block) => {
-                        let block: core::BlockView = block.into();
-                        let block_hash = block.hash();
-                        if new_hash == zero_hash {
-                            new_hash = block_hash;
-                        } else if new_hash != block.hash() {
-                            // inconsistent chain state, break and wait a minute
-                            new_hash = zero_hash.clone();
-                            break;
-                        }
-                    }
-                    None => {
-                        // inconsistent chain state, break and wait a minute
-                        new_hash = zero_hash.clone();
-                        break;
-                    }
-                }
-            }
-
-            if new_hash != zero_hash {
-                let block: core::BlockView = rpcs[0]
-                    .get_block(new_hash)
-                    .expect("block existence checked")
-                    .into();
-                if block_sender.send(block).is_err() {
-                    return;
-                }
-
-                current_number += 1;
-            }
-        }
+    let (matureds, mut unmatureds) = sender.pull_until(&rpc, cursor_number);
+    matureds.into_iter().for_each(|utxo| {
+        utxo_sender.send(utxo).unwrap();
     });
 
-    // A thread for receiving blocks and extract owned utxos by bench account
+    let sender_clone = sender.clone();
+    let rpc_clone = rpc.clone();
     spawn(move || {
-        while let Ok(block) = block_receiver.recv() {
-            let utxos = filter_utxos_from_block(&BENCH_ACCOUNT_LOCK_HASH, &block);
-            for utxo in utxos {
-                if utxo_sender.send(utxo).is_err() {
-                    return;
-                }
-            }
-        }
+        sender_clone.pull_forever(rpc_clone, cursor_number, unmatureds, utxo_sender);
     });
-
-    // A thread for receiving utxos and construct new transactions
-    let config_clone = config.clone();
     spawn(move || {
-        let config = config_clone;
-        let mut utxos: Vec<UTXO> = Vec::new();
-        while let Ok(utxo) = utxo_receiver.recv() {
-            utxos.push(utxo);
-            if config.transaction_type.required() == utxos.len() {
-                let mut inputs = Vec::new();
-                mem::swap(&mut inputs, &mut utxos);
-                let transaction = construct_bench_transaction(&config, inputs);
-                if transaction_sender.send(transaction).is_err() {
-                    break;
-                }
-            }
-        }
-    });
-
-    // Multiple threads for sending transaction
-    let rpcs = connect_jsonrpcs(&config.node_urls);
-    let rpc_transaction_senders = rpcs
-        .into_iter()
-        .map(|rpc| {
-            let (rpc_transaction_sender, rpc_transaction_receiver): (
-                Sender<core::TransactionView>,
-                Receiver<core::TransactionView>,
-            ) = bounded(1);
-            spawn(move || {
-                while let Ok(transaction) = rpc_transaction_receiver.recv() {
-                    rpc.send_transaction_result(transaction.data().into())
-                        .expect("there is bug, let it crash early");
-                }
-            });
-            rpc_transaction_sender
-        })
-        .collect::<Vec<_>>();
-
-    let nnode = config.node_urls.len();
-    let mut inode = 0;
-    let mut controller = GlobalController::new(&config);
-    while start_time.elapsed() < duration {
-        match transaction_receiver.recv() {
-            Ok(transaction) => {
-                if rpc_transaction_senders[inode].send(transaction).is_err() {
-                    break;
-                }
-                inode = (inode + 1) % nnode;
-
-                let sleep_time = controller.add();
-                sleep(sleep_time);
-            }
-            Err(_err) => {
-                break;
-            }
-        }
-    }
+        sender.transfer_forever(recipient, rpc, utxo_receiver, transaction_type, duration)
+    })
 }
 
 fn connect_jsonrpcs(urls: &[Url]) -> Vec<Jsonrpc> {
@@ -341,162 +185,4 @@ fn connect_jsonrpcs(urls: &[Url]) -> Vec<Jsonrpc> {
         }
     }
     rpcs
-}
-
-fn construct_bench_transaction(config: &Config, utxos: Vec<UTXO>) -> core::TransactionView {
-    let required = config.transaction_type.required();
-    assert_eq!(required, utxos.len());
-
-    let input_total_capacity = utxos.iter().map(|input| input.capacity()).sum::<u64>();
-    let fee = estimate_fee(config);
-    let output_total_capacity = input_total_capacity - fee;
-
-    let inputs = utxos
-        .iter()
-        .map(|input| {
-            CellInput::new_builder()
-                .previous_output(input.out_point().clone())
-                .build()
-        })
-        .collect::<Vec<_>>();
-    let outputs = (0..required)
-        .map(|i| {
-            let capacity = if (i as u64) < output_total_capacity % (required as u64) {
-                output_total_capacity / required as u64 + 1
-            } else {
-                output_total_capacity / required as u64
-            };
-            CellOutput::new_builder()
-                .lock(BENCH_ACCOUNT_LOCK_SCRIPT.clone())
-                .capacity(capacity.pack())
-                .build()
-        })
-        .collect::<Vec<_>>();
-    let outputs_data = (0..required)
-        .map(|_| Default::default())
-        .collect::<Vec<_>>();
-    let raw_transaction = core::TransactionBuilder::default()
-        .inputs(inputs)
-        .outputs(outputs)
-        .outputs_data(outputs_data)
-        .cell_dep(SIGHASH_ALL_CELL_DEP.clone())
-        .build();
-    sign_transaction(&BENCH_ACCOUNT_PRIVATE_KEY, raw_transaction)
-}
-
-// fn transfer_all(config: &Config, sender: &Privkey, receiver: &Privkey) {
-// TODO complete this function
-// }
-
-// TODO if count > MAX_COUNT then transfer_initial_cells multiple times
-fn init_bench_account(config: &Config, sender: &Privkey, receiver: &Privkey, count: usize) {
-    let rpcs = connect_jsonrpcs(&config.node_urls);
-    let tip_number = rpcs
-        .iter()
-        .map(|rpc| rpc.get_tip_block_number())
-        .max()
-        .unwrap();
-
-    // Construct outputs
-    let mut outputs = (0..count)
-        .map(|_| {
-            CellOutput::new_builder()
-                .lock(lock_script(receiver))
-                .capacity(INITIAL_CELL_CAPACITY.pack())
-                .build()
-        })
-        .collect::<Vec<_>>();
-    let output_total_capacity = count as u64 * INITIAL_CELL_CAPACITY;
-
-    // Construct inputs, inputs' total capacity greater than outputs' total capacity adding estimated fee
-    let estimated_fee = 10000 * outputs.len() as u64; // FIXME
-    let sender_lock_hash = lock_hash(sender);
-    let mut inputs = Vec::new();
-    let mut input_total_capacity = 0;
-    let utxos = filter_utxos_from_chain(&sender_lock_hash, &rpcs[0], 0, tip_number);
-    assert!(!utxos.is_empty());
-
-    for utxo in utxos.into_iter() {
-        inputs.push(utxo.as_previous_input());
-        input_total_capacity += utxo.capacity();
-        if input_total_capacity >= estimated_fee + output_total_capacity {
-            break;
-        }
-    }
-    assert!(input_total_capacity >= estimated_fee + output_total_capacity);
-
-    // Handle last output
-    let last_output = outputs.pop().unwrap();
-    let last_output_capacity: u64 = last_output.capacity().unpack();
-    let last_output = last_output
-        .as_builder()
-        .capacity(
-            (last_output_capacity + input_total_capacity - estimated_fee - output_total_capacity)
-                .pack(),
-        )
-        .build();
-    outputs.push(last_output);
-
-    // Construct transaction
-    let outputs_data = (0..outputs.len())
-        .map(|_| Default::default())
-        .collect::<Vec<_>>();
-    let raw_transaction = core::TransactionBuilder::default()
-        .inputs(inputs)
-        .outputs(outputs)
-        .outputs_data(outputs_data)
-        .cell_dep(SIGHASH_ALL_CELL_DEP.clone())
-        .build();
-    let transaction = sign_transaction(&sender, raw_transaction);
-    let tx_hash = rpcs[0].send_transaction(transaction.data().into()).pack();
-
-    wait_until_committed(&rpcs[0], &tx_hash);
-}
-
-fn wait_until_committed(rpc: &Jsonrpc, tx_hash: &Byte32) {
-    loop {
-        if let Some(tx_result) = rpc.get_transaction(tx_hash.clone()) {
-            if tx_result.tx_status.status == Status::Committed {
-                return;
-            }
-        }
-    }
-}
-
-fn sign_transaction(privkey: &Privkey, tx: core::TransactionView) -> core::TransactionView {
-    let tx_hash = tx.hash();
-
-    let mut blake2b = ckb_hash::new_blake2b();
-    let mut message = [0u8; 32];
-    blake2b.update(&tx_hash.raw_data());
-    let witness_for_digest = WitnessArgs::new_builder()
-        .lock(Some(Bytes::from(vec![0u8; 65])).pack())
-        .build();
-    let witness_len = witness_for_digest.as_bytes().len() as u64;
-    blake2b.update(&witness_len.to_le_bytes());
-    blake2b.update(&witness_for_digest.as_bytes());
-    blake2b.finalize(&mut message);
-    let message = H256::from(message);
-    let sig = privkey.sign_recoverable(&message).expect("sign");
-    let signed_witness = WitnessArgs::new_builder()
-        .lock(Some(Bytes::from(sig.serialize())).pack())
-        .build()
-        .as_bytes()
-        .pack();
-
-    // calculate message
-    tx.as_advanced_builder()
-        .set_witnesses(vec![signed_witness])
-        .build()
-}
-
-// TODO estimate fee MIN_FEE_RATE
-fn estimate_fee(config: &Config) -> u64 {
-    1000 * config.transaction_type.required() as u64
-}
-
-// - The structure of transaction
-// - The number of nodes in the network
-fn print_parameters(config: &Config) {
-    let tx_type = config.transaction_type;
 }

@@ -1,11 +1,12 @@
+use crate::account::Account;
 use crate::config::Config;
 use crate::prompt_and_exit;
 use crate::rpc::Jsonrpc;
-use crate::util::{lock_hash, lock_script};
 use ckb_crypto::secp::Privkey;
 use ckb_types::core::TransactionView;
 use ckb_types::packed::{self, Block, Byte32, Script};
 use failure::_core::time::Duration;
+use std::ops::Deref;
 use std::str::FromStr;
 use std::thread::{sleep, spawn};
 
@@ -13,30 +14,27 @@ use std::thread::{sleep, spawn};
 pub struct Miner {
     config: Config,
     rpc: Jsonrpc,
-    privkey: Privkey,
+    account: Account,
 }
 
 impl Miner {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: Config, private_key: &str) -> Self {
         let url = &config.node_urls[0];
         let rpc = match Jsonrpc::connect(url.as_str()) {
             Ok(rpc) => rpc,
             Err(err) => prompt_and_exit!("Jsonrpc::connect({}) error: {}", url.as_str(), err),
         };
-        let privkey = match Privkey::from_str(&config.private_key) {
-            Ok(privkey) => {
-                let configured_miner_lock_script = lock_script(&privkey);
-                let block_assembler_lock_script = get_block_assembler_lock_script(&rpc);
-                assert_eq!(configured_miner_lock_script, block_assembler_lock_script);
-                privkey
-            }
-            Err(err) => prompt_and_exit!("Privkey::from_str({}): {:?}", config.private_key, err),
-        };
+        let account = Account::new(private_key);
+
+        // Ensure the miner is matcher with block_assembler configured in ckb
+        let configured_miner_lock_script = account.lock_script();
+        let block_assembler_lock_script = get_block_assembler_lock_script(&rpc);
+        assert_eq!(configured_miner_lock_script, block_assembler_lock_script);
 
         Self {
             config,
             rpc,
-            privkey,
+            account,
         }
     }
 
@@ -74,14 +72,27 @@ impl Miner {
     }
 
     /// Run a miner background to generate blocks forever, in the configured frequency.
-    pub fn async_run(self) {
+    pub fn async_mine(&self) {
         let block_time = Duration::from_millis(self.config.block_time);
 
         println!("Miner.async_run");
+        let miner = self.clone();
         spawn(move || loop {
             sleep(block_time);
-            self.generate_block();
+            miner.generate_block();
         });
+    }
+
+    pub fn account(&self) -> &Account {
+        &self.account
+    }
+}
+
+impl Deref for Miner {
+    type Target = Account;
+
+    fn deref(&self) -> &Self::Target {
+        &&self.account
     }
 }
 

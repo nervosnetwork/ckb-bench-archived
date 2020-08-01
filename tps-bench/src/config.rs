@@ -31,7 +31,8 @@ impl Deref for Url {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Config {
     pub logpath: String,
-    pub private_key: String,
+    pub bencher_private_key: String,
+    pub miner_private_key: String,
     pub node_urls: Vec<Url>,
     pub block_time: u64, // in milliseconds
     pub transaction_type: TransactionType,
