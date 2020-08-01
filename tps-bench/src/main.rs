@@ -163,7 +163,7 @@ fn run_account_threads(
     let cursor_number = rpc.get_tip_block_number();
 
     println!("start pull_until");
-    let (matureds, mut unmatureds) = sender.pull_until(&rpc, cursor_number);
+    let (matureds, unmatureds) = sender.pull_until(&rpc, cursor_number);
     println!(
         "end pull_until, matured: {}, unmatured: {}",
         matureds.len(),

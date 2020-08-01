@@ -5,10 +5,7 @@ use ckb_types::packed::Byte32;
 use lazy_static::lazy_static;
 use std::sync::{Mutex, MutexGuard};
 
-const SYSTEM_TRANSACTION_INDEX: usize = 0;
 const DEP_GROUP_TRANSACTION_INDEX: usize = 1;
-const SIGHASH_ALL_SYSTEM_CELL_INDEX: usize = 1;
-const SIGHASH_ALL_DEP_GROUP_CELL_INDEX: usize = 0;
 
 lazy_static! {
     pub static ref GENESIS_INFO: Mutex<GenesisInfo> = Mutex::new(GenesisInfo::default());
