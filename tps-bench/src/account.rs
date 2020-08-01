@@ -129,7 +129,7 @@ impl Account {
                 }
                 while let Some(true) = unmatureds
                     .first()
-                    .map(|number_and_utxo| is_matured(tip_number, number_and_utxo))
+                    .map(|number_and_utxo| is_matured(tip_number, number_and_utxo.0))
                 {
                     let (_, utxo) = unmatureds.remove(0);
                     if utxo_sender.send(utxo).is_err() {
@@ -183,13 +183,21 @@ impl Account {
             let signed_transaction = sign_transaction(&self, raw_transaction);
             if let Err(err) = rpc.send_transaction_result(signed_transaction.data().into()) {
                 let tip_number = rpc.get_tip_block_number();
-                let message =
-                    signed_transaction.input_pts_iter()
-                        .map(|input| format!("input.tx_hash: {}, input.index: {}", input.tx_hash(), input.index()))
-                        .collect::<Vec<_>>()
-                        .join(";");
-
-                let message = format!("rpc.send_transaction_result: tip_number: {}, message: {}, error: {:?}", tip_number, message, err);
+                let info = signed_transaction
+                    .input_pts_iter()
+                    .map(|input| {
+                        format!(
+                            "input.tx_hash: {}, input.index: {}",
+                            input.tx_hash(),
+                            input.index()
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join(";");
+                let message = format!(
+                    "rpc.send_transaction_result: tip_number: {}, info: {}, error: {:?}",
+                    tip_number, info, err
+                );
                 panic!(message)
             }
 
@@ -230,6 +238,6 @@ impl Account {
     }
 }
 
-fn is_matured(tip_number: BlockNumber, number_and_utxo: &(BlockNumber, UTXO)) -> bool {
-    tip_number > number_and_utxo.0 + 1800 * 5
+fn is_matured(tip_number: BlockNumber, number: BlockNumber) -> bool {
+    tip_number > number + 1800 * 5
 }

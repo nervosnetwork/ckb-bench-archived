@@ -19,5 +19,8 @@ macro_rules! prompt_and_exit {
 
 /// TODO estimate fee MIN_FEE_RATE
 pub(crate) fn estimate_fee(outputs_count: u64) -> u64 {
-    1000 * outputs_count
+    pub const MIN_FEE_RATE: u64 = 1_000; // shannons/KB
+
+    let min_fee_rate = 1000u64;
+    outputs_count * min_fee_rate
 }

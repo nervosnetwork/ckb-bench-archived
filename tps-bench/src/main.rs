@@ -81,11 +81,9 @@ lazy_static! {
         .build();
     static ref BENCH_ACCOUNT_LOCK_HASH: Byte32 = BENCH_ACCOUNT_LOCK_SCRIPT.calc_script_hash();
 }
-pub const MIN_SECP_CELL_CAPACITY: u64 = 60_0000_0000;
-pub const INITIAL_CELL_CAPACITY: u64 = MIN_SECP_CELL_CAPACITY * 2 - 1;
+pub const MIN_SECP_CELL_CAPACITY: u64 = 61_0000_0000;
 
 /// Network Parameters
-pub const MIN_FEE_RATE: u64 = 1_000; // shannons/KB
 pub const BLOCK_TIME: Duration = Duration::from_secs(2);
 pub const SYSTEM_TRANSACTION_INDEX: usize = 0;
 pub const DEP_GROUP_TRANSACTION_INDEX: usize = 1;
