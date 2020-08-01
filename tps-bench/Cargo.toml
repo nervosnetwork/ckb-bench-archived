@@ -7,13 +7,13 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ckb-jsonrpc-types = { git = "https://github.com/nervosnetwork/ckb.git", rev = "v0.32.0" }
-ckb-types = { git = "https://github.com/nervosnetwork/ckb.git", rev = "v0.32.0" }
-ckb-hash = { git = "https://github.com/nervosnetwork/ckb.git", rev = "v0.32.0" }
-ckb-util = { git = "https://github.com/nervosnetwork/ckb.git", rev = "v0.32.0" }
-ckb-logger = { git = "https://github.com/nervosnetwork/ckb.git", rev = "v0.32.0" }
-ckb-crypto = { git = "https://github.com/nervosnetwork/ckb.git", rev = "v0.32.0" }
-ckb-chain-spec = { git = "https://github.com/nervosnetwork/ckb.git", rev = "v0.32.0" }
+ckb-jsonrpc-types = { git = "https://github.com/nervosnetwork/ckb.git", rev = "v0.34.1" }
+ckb-types = { git = "https://github.com/nervosnetwork/ckb.git", rev = "v0.34.1" }
+ckb-hash = { git = "https://github.com/nervosnetwork/ckb.git", rev = "v0.34.1" }
+ckb-util = { git = "https://github.com/nervosnetwork/ckb.git", rev = "v0.34.1" }
+ckb-logger = { git = "https://github.com/nervosnetwork/ckb.git", rev = "v0.34.1" }
+ckb-crypto = { git = "https://github.com/nervosnetwork/ckb.git", rev = "v0.34.1" }
+ckb-chain-spec = { git = "https://github.com/nervosnetwork/ckb.git", rev = "v0.34.1" }
 
 failure = "0.1.5"
 serde = "1.0"
