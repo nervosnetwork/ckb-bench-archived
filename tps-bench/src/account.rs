@@ -189,7 +189,7 @@ impl Account {
                         .collect::<Vec<_>>()
                         .join(";");
 
-                let message = format!("rpc.send_transaction_result: message: {}, error: {:?}", message, err);
+                let message = format!("rpc.send_transaction_result: tip_number: {}, message: {}, error: {:?}", tip_number, message, err);
                 panic!(message)
             }
 
