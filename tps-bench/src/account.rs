@@ -182,7 +182,14 @@ impl Account {
                 construct_unsigned_transaction(&recipient, inputs.split_off(0), outputs_count);
             let signed_transaction = sign_transaction(&self, raw_transaction);
             if let Err(err) = rpc.send_transaction_result(signed_transaction.data().into()) {
-                let message = format!("rpc.send_transaction_result: {:?}", err);
+                let tip_number = rpc.get_tip_block_number();
+                let message =
+                    signed_transaction.input_pts_iter()
+                        .map(|input| format!("input.tx_hash: {}, input.index: {}", input.tx_hash(), input.index()))
+                        .collect::<Vec<_>>()
+                        .join(";");
+
+                let message = format!("rpc.send_transaction_result: message: {}, error: {:?}", message, err);
                 panic!(message)
             }
 
