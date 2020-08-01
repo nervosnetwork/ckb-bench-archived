@@ -81,15 +81,17 @@ impl Account {
             }
         }
 
+        let mut unmatureds: Vec<_> = unmatureds
+            .into_iter()
+            .map(|(out_point, (number, output))| (number, UTXO::new(output, out_point)))
+            .collect();
+        unmatureds.sort_by_key(|(number, _)| *number);
         (
             utxoset
                 .into_iter()
                 .map(|(out_point, output)| UTXO::new(output, out_point))
                 .collect(),
-            unmatureds
-                .into_iter()
-                .map(|(out_point, (number, output))| (number, UTXO::new(output, out_point)))
-                .collect(),
+            unmatureds,
         )
     }
 
