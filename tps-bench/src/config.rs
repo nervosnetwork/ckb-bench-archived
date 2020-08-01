@@ -36,7 +36,6 @@ pub struct Config {
     pub node_urls: Vec<Url>,
     pub block_time: u64, // in milliseconds
     pub transaction_type: TransactionType,
-    pub transaction_count: u64,
 }
 
 impl Config {

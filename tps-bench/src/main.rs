@@ -39,7 +39,6 @@ pub mod config;
 pub mod controller;
 pub mod genesis_info;
 pub mod global_controller;
-pub mod local_controller;
 pub mod rpc;
 pub mod utxo;
 
