@@ -128,7 +128,7 @@ fn main() {
             if config.start_miner {
                 miner.async_mine();
             }
-            miner.generate_blocks_until_tx_pool_empty(config.start_miner);
+            miner.wait_txpool_empty(config.start_miner);
 
             if miner.lock_script() != bencher.lock_script() {
                 let _ = run_account_threads(

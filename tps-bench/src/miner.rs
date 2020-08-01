@@ -57,10 +57,10 @@ impl Miner {
     }
 
     /// Run a miner to generate new blocks until the tx-pool be empty.
-    pub fn generate_blocks_until_tx_pool_empty(&self, start_miner: bool) {
+    pub fn wait_txpool_empty(&self, start_miner: bool) {
         let rpc = self.rpc.clone();
 
-        println!("Miner.generate_blocks_until_tx_pool_empty");
+        println!("Miner.wait_txpool_empty");
         loop {
             let tx_pool_info = rpc.tx_pool_info();
             if tx_pool_info.pending.value() == 0 && tx_pool_info.proposed.value() == 0 {
