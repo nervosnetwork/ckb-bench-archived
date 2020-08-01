@@ -196,7 +196,7 @@ impl Account {
     fn get_owned_utxos(&self, block: &core::BlockView) -> (Vec<UTXO>, Vec<UTXO>) {
         let lock_script = self.lock_script();
         let (mut unmatured, mut matured) = (Vec::new(), Vec::new());
-        for (_, transaction) in block.transactions().into_iter().enumerate() {
+        for (tx_index, transaction) in block.transactions().into_iter().enumerate() {
             for (index, output) in transaction.outputs().into_iter().enumerate() {
                 let output: CellOutput = output;
                 if lock_script != output.lock() {
@@ -209,7 +209,7 @@ impl Account {
                     .build();
                 let utxo = UTXO::new(output, out_point);
 
-                if index == 0 {
+                if tx_index == 0 {
                     unmatured.push(utxo)
                 } else {
                     matured.push(utxo);
@@ -225,5 +225,5 @@ impl Account {
 // Controller(receiver: 其它人 或者 自己)，如果是自己，那可能是 alice 给自己转；如果是其它人，那可能是 miner 给 alice 转；
 
 fn is_matured(tip_number: BlockNumber, number_and_utxo: &(BlockNumber, UTXO)) -> bool {
-     tip_number > number_and_utxo.0 + 1800
+    tip_number > number_and_utxo.0 + 1800
 }
