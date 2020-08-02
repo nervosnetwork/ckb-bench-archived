@@ -181,7 +181,8 @@ impl Account {
             let raw_transaction =
                 construct_unsigned_transaction(&recipient, inputs.split_off(0), outputs_count);
             let signed_transaction = sign_transaction(&self, raw_transaction);
-            if let Err(err) = rpc.send_transaction_result(signed_transaction.data().into()) {
+
+            if let Err(err) = retry_send(&rpc, &signed_transaction) {
                 let tip_number = rpc.get_tip_block_number();
                 let info = signed_transaction
                     .input_pts_iter()
@@ -240,4 +241,21 @@ impl Account {
 
 fn is_matured(tip_number: BlockNumber, number: BlockNumber) -> bool {
     tip_number > number + 1800 * 5
+}
+
+fn retry_send(rpc: &Jsonrpc, transaction: &core::TransactionView) -> Result<(), String> {
+    loop {
+        match rpc.send_transaction_result(transaction.data().into()) {
+            Err(err) => {
+                if err.to_string().contains("TransactionPoolFull") {
+                    sleep(Duration::from_secs(1));
+                    continue;
+                }
+                return Err(err.to_string());
+            }
+            Ok(_) => {
+                return Ok(());
+            }
+        }
+    }
 }
