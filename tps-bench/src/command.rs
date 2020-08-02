@@ -5,6 +5,7 @@ pub const MINE_SUBCOMMAND: &str = "mine";
 pub const BENCH_SUBCOMMAND: &str = "bench";
 pub const INIT_BENCH_ACCOUNT_SUBCOMMAND: &str = "init_bench_account";
 
+#[derive(Debug, Clone)]
 pub enum CommandLine {
     MineMode(Config, u64 /* blocks */),
     BenchMode(Config, Option<Duration> /* duration */),

@@ -167,13 +167,13 @@ fn run_account_threads(
         matureds.len(),
         unmatureds.len()
     );
-    matureds.into_iter().for_each(|utxo| {
-        utxo_sender.send(utxo).unwrap();
-    });
 
     let sender_clone = sender.clone();
     let rpc_clone = rpc.clone();
     spawn(move || {
+        matureds.into_iter().for_each(|utxo| {
+            utxo_sender.send(utxo).unwrap();
+        });
         sender_clone.pull_forever(rpc_clone, cursor_number, unmatureds, utxo_sender);
     });
     spawn(move || {
