@@ -184,6 +184,7 @@ impl Account {
 
             if let Err(err) = retry_send(&rpc, &signed_transaction) {
                 let tip_number = rpc.get_tip_block_number();
+                let tx_pool_info = rpc.tx_pool_info();
                 let info = signed_transaction
                     .input_pts_iter()
                     .map(|input| {
@@ -196,8 +197,8 @@ impl Account {
                     .collect::<Vec<_>>()
                     .join(";");
                 let message = format!(
-                    "rpc.send_transaction_result: tip_number: {}, info: {}, error: {:?}",
-                    tip_number, info, err
+                    "rpc.send_transaction_result: tx_pool_info: {:?}, tip_number: {}, info: {}, error: {:?}",
+                    tx_pool_info, tip_number, info, err
                 );
                 panic!(message)
             }
