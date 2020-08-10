@@ -244,7 +244,8 @@ fn retry_send(rpc: &Jsonrpc, transaction: &core::TransactionView) -> Result<(), 
     loop {
         match rpc.send_transaction_result(transaction.data().into()) {
             Err(err) => {
-                if err.to_string().contains("TransactionPoolFull") {
+                let err_str = err.to_string();
+                if err_str.contains("TransactionPoolFull") || err_str.contains("PoolIsFull") {
                     sleep(Duration::from_secs(1));
                     continue;
                 }
