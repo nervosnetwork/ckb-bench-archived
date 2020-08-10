@@ -182,9 +182,9 @@ impl Account {
                 construct_unsigned_transaction(&recipient, inputs.split_off(0), outputs_count);
             let signed_transaction = sign_transaction(&self, raw_transaction);
 
+            let tip_number = rpc.get_tip_block_number();
+            let tx_pool_info = rpc.tx_pool_info();
             if let Err(err) = retry_send(&rpc, &signed_transaction) {
-                let tip_number = rpc.get_tip_block_number();
-                let tx_pool_info = rpc.tx_pool_info();
                 let info = signed_transaction
                     .input_pts_iter()
                     .map(|input| {

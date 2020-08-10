@@ -159,15 +159,7 @@ fn run_account_threads(
 ) -> JoinHandle<()> {
     let (utxo_sender, utxo_receiver) = bounded(2000);
     let cursor_number = rpc.get_tip_block_number();
-
-    println!("start pull_until");
     let (matureds, unmatureds) = sender.pull_until(&rpc, cursor_number);
-    println!(
-        "end pull_until, matured: {}, unmatured: {}",
-        matureds.len(),
-        unmatureds.len()
-    );
-
     let sender_clone = sender.clone();
     let rpc_clone = rpc.clone();
     spawn(move || {
