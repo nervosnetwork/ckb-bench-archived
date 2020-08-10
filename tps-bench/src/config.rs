@@ -18,6 +18,12 @@ impl TransactionType {
     }
 }
 
+impl Default for TransactionType {
+    fn default() -> Self {
+        TransactionType::In2Out2
+    }
+}
+
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Url(#[serde(with = "url_serde")] pub url::Url);
 
