@@ -7,13 +7,13 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ckb-jsonrpc-types = { git = "https://github.com/nervosnetwork/ckb.git", rev = "c8da160b7b4b0b41f5cebd9047d6114236ad5b4f" }
-ckb-types = { git = "https://github.com/nervosnetwork/ckb.git", rev = "c8da160b7b4b0b41f5cebd9047d6114236ad5b4f" }
-ckb-hash = { git = "https://github.com/nervosnetwork/ckb.git", rev = "c8da160b7b4b0b41f5cebd9047d6114236ad5b4f" }
-ckb-util = { git = "https://github.com/nervosnetwork/ckb.git", rev = "c8da160b7b4b0b41f5cebd9047d6114236ad5b4f" }
-ckb-logger = { git = "https://github.com/nervosnetwork/ckb.git", rev = "c8da160b7b4b0b41f5cebd9047d6114236ad5b4f" }
-ckb-crypto = { git = "https://github.com/nervosnetwork/ckb.git", rev = "c8da160b7b4b0b41f5cebd9047d6114236ad5b4f" }
-ckb-chain-spec = { git = "https://github.com/nervosnetwork/ckb.git", rev = "c8da160b7b4b0b41f5cebd9047d6114236ad5b4f" }
+ckb-jsonrpc-types = { git = "https://github.com/nervosnetwork/ckb.git", rev = "0c1a61c0ca13b300a83832a760b9899cc401dcfd" }
+ckb-types = { git = "https://github.com/nervosnetwork/ckb.git", rev = "0c1a61c0ca13b300a83832a760b9899cc401dcfd" }
+ckb-hash = { git = "https://github.com/nervosnetwork/ckb.git", rev = "0c1a61c0ca13b300a83832a760b9899cc401dcfd" }
+ckb-util = { git = "https://github.com/nervosnetwork/ckb.git", rev = "0c1a61c0ca13b300a83832a760b9899cc401dcfd" }
+ckb-logger = { git = "https://github.com/nervosnetwork/ckb.git", rev = "0c1a61c0ca13b300a83832a760b9899cc401dcfd" }
+ckb-crypto = { git = "https://github.com/nervosnetwork/ckb.git", rev = "0c1a61c0ca13b300a83832a760b9899cc401dcfd" }
+ckb-chain-spec = { git = "https://github.com/nervosnetwork/ckb.git", rev = "0c1a61c0ca13b300a83832a760b9899cc401dcfd" }
 
 failure = "0.1.5"
 serde = "1.0"
