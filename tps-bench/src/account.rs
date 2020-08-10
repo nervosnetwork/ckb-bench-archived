@@ -17,6 +17,8 @@ use std::str::FromStr;
 use std::thread::{sleep, spawn};
 use std::time::{Duration, Instant};
 
+pub const CELLBASE_MATURITY: u64 = 10;
+
 #[derive(Clone)]
 pub struct Account {
     privkey: Privkey,
@@ -200,8 +202,7 @@ impl Account {
                     "rpc.send_transaction_result: tx_pool_info: {:?}, tip_number: {}, info: {}, error: {:?}",
                     tx_pool_info, tip_number, info, err
                 );
-                eprintln!("{}", message);
-                // panic!(message)
+                panic!(message)
             }
 
             if duration.map(|d| start_time.elapsed() > d).unwrap_or(false) {
@@ -242,7 +243,7 @@ impl Account {
 }
 
 fn is_matured(tip_number: BlockNumber, number: BlockNumber) -> bool {
-    tip_number > number + 1800 * 5
+    tip_number > number + 1800 * CELLBASE_MATURITY
 }
 
 fn retry_send(rpc: &Jsonrpc, transaction: &core::TransactionView) -> Result<(), String> {
