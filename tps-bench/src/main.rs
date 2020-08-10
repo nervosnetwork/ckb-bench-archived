@@ -3,32 +3,22 @@ extern crate clap;
 
 use crate::account::Account;
 use crate::command::{commandline, CommandLine};
-use crate::config::{Config, TransactionType, Url};
-use crate::controller::Controller;
-use crate::genesis_info::{global_genesis_info, init_global_genesis_info, GenesisInfo};
-use crate::global_controller::GlobalController;
+use crate::config::{TransactionType, Url};
+use crate::genesis_info::{global_genesis_info, init_global_genesis_info};
 use crate::miner::Miner;
 use crate::rpc::Jsonrpc;
-use crate::transfer::sign_transaction;
-use crate::util::estimate_fee;
-use crate::utxo::UTXO;
+use crate::tps_calculator::TPSCalculator;
 use ckb_crypto::secp::{Privkey, Pubkey};
-use ckb_hash::blake2b_256;
-use ckb_jsonrpc_types::Status;
-use ckb_types::core::{self, DepType, ScriptHashType};
-use ckb_types::packed::{
-    Block, Byte32, CellDep, CellInput, CellOutput, OutPoint, Script, WitnessArgs,
-};
+use ckb_types::core::{DepType, ScriptHashType};
+use ckb_types::packed::{Byte32, CellDep, OutPoint, Script};
 use ckb_types::prelude::*;
-use ckb_types::{bytes::Bytes, h160, h256, H160, H256};
-use crossbeam_channel::{bounded, unbounded, Receiver, Sender};
+use ckb_types::{h160, h256, H160, H256};
+use crossbeam_channel::bounded;
 use lazy_static::lazy_static;
-use std::collections::HashMap;
-use std::mem;
 use std::str::FromStr;
 use std::sync::Mutex;
-use std::thread::{sleep, spawn, JoinHandle};
-use std::time::{Duration, Instant};
+use std::thread::{spawn, JoinHandle};
+use std::time::Duration;
 
 pub mod miner;
 pub mod transfer;
@@ -36,10 +26,9 @@ pub mod util;
 pub mod account;
 pub mod command;
 pub mod config;
-pub mod controller;
 pub mod genesis_info;
-pub mod global_controller;
 pub mod rpc;
+pub mod tps_calculator;
 pub mod utxo;
 
 /// Bench Account Info, type `ckb-cli util key-info <privkey-path>` to generate the account info,
@@ -127,6 +116,7 @@ fn main() {
                 miner.async_mine();
             }
             miner.wait_txpool_empty(config.start_miner);
+            TPSCalculator::new(&config).async_run();
 
             if miner.lock_script() != bencher.lock_script() {
                 let _ = run_account_threads(

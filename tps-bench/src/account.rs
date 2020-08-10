@@ -11,10 +11,10 @@ use ckb_types::core::{BlockNumber, ScriptHashType};
 use ckb_types::packed::{Byte32, CellOutput, OutPoint, Script};
 use ckb_types::prelude::*;
 use ckb_types::H160;
-use crossbeam_channel::{tick, unbounded, Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender};
 use std::collections::HashMap;
 use std::str::FromStr;
-use std::thread::{sleep, spawn};
+use std::thread::sleep;
 use std::time::{Duration, Instant};
 
 pub const CELLBASE_MATURITY: u64 = 10;
@@ -163,20 +163,12 @@ impl Account {
             outputs_count * MIN_SECP_CELL_CAPACITY + estimate_fee(outputs_count);
         let (mut inputs, mut input_total_capacity) = (Vec::new(), 0);
 
-        let mut sent = 0;
-        let mut last_print = Instant::now();
         while let Ok(utxo) = utxo_receiver.recv() {
             input_total_capacity += utxo.capacity();
             inputs.push(utxo);
 
             if input_total_capacity < min_input_total_capacity {
                 continue;
-            }
-
-            sent += 1;
-            if last_print.elapsed() > Duration::from_secs(5) {
-                last_print = Instant::now();
-                println!("transfer_forever, sent: {}", sent);
             }
 
             input_total_capacity = 0;

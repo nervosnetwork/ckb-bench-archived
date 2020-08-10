@@ -2,11 +2,10 @@ use crate::account::Account;
 use crate::util::estimate_fee;
 use crate::utxo::UTXO;
 use crate::SIGHASH_ALL_CELL_DEP;
-use ckb_crypto::secp::Privkey;
 use ckb_types::core;
 use ckb_types::packed::{CellInput, CellOutput, WitnessArgs};
 use ckb_types::prelude::*;
-use ckb_types::{bytes::Bytes, h160, h256, H160, H256};
+use ckb_types::{bytes::Bytes, H256};
 
 /// Transfer all the `utxos` to `recipient` in `outputs_count` outputs.
 /// The returned transaction is unsigned, it should be signed by sender before

@@ -1,14 +1,5 @@
 #![macro_use]
 
-use crate::config::Config;
-use crate::SIGHASH_ALL_TYPE_HASH;
-use ckb_crypto::secp::Privkey;
-use ckb_hash::blake2b_256;
-use ckb_types::core::{BlockNumber, ScriptHashType};
-use ckb_types::packed::{Byte32, Script};
-use ckb_types::prelude::*;
-use ckb_types::H160;
-
 #[macro_export]
 macro_rules! prompt_and_exit {
     ($($arg:tt)*) => ({
@@ -19,8 +10,6 @@ macro_rules! prompt_and_exit {
 
 /// TODO estimate fee MIN_FEE_RATE
 pub(crate) fn estimate_fee(outputs_count: u64) -> u64 {
-    pub const MIN_FEE_RATE: u64 = 1_000; // shannons/KB
-
-    let min_fee_rate = 1000u64;
+    let min_fee_rate = 1000u64; // shannons/KB
     outputs_count * min_fee_rate
 }

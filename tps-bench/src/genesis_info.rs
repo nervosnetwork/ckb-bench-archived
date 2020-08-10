@@ -3,7 +3,7 @@ use crate::rpc::Jsonrpc;
 use ckb_types::core;
 use ckb_types::packed::Byte32;
 use lazy_static::lazy_static;
-use std::sync::{Mutex, MutexGuard};
+use std::sync::Mutex;
 
 const DEP_GROUP_TRANSACTION_INDEX: usize = 1;
 

@@ -2,12 +2,9 @@ use crate::account::Account;
 use crate::config::Config;
 use crate::prompt_and_exit;
 use crate::rpc::Jsonrpc;
-use ckb_crypto::secp::Privkey;
-use ckb_types::core::TransactionView;
-use ckb_types::packed::{self, Block, Byte32, Script};
+use ckb_types::packed::{self, Block, Script};
 use failure::_core::time::Duration;
 use std::ops::Deref;
-use std::str::FromStr;
 use std::thread::{sleep, spawn};
 
 #[derive(Clone)]
