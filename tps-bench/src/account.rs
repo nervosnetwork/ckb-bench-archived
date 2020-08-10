@@ -116,14 +116,6 @@ impl Account {
                     .into();
 
                 let (matured, unmatured) = self.get_owned_utxos(&block);
-                println!(
-                    "pull_forever, block: {}, matured: {}, unmatured: {}, total_unmatured: {}",
-                    number,
-                    matured.len(),
-                    unmatured.len(),
-                    unmatureds.len()
-                );
-
                 for utxo in matured {
                     if utxo_sender.send(utxo).is_err() {
                         return;
