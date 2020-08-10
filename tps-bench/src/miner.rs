@@ -57,7 +57,7 @@ impl Miner {
     pub fn wait_txpool_empty(&self, start_miner: bool) {
         let rpc = self.rpc.clone();
 
-        println!("Miner.wait_txpool_empty");
+        println!("START miner.wait_txpool_empty");
         loop {
             let tx_pool_info = rpc.tx_pool_info();
             if tx_pool_info.pending.value() == 0 && tx_pool_info.proposed.value() == 0 {
@@ -68,6 +68,7 @@ impl Miner {
             }
             sleep(Duration::from_secs(1));
         }
+        println!("DONE miner.wait_txpool_empty");
     }
 
     /// Run a miner background to generate blocks forever, in the configured frequency.

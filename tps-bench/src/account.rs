@@ -163,6 +163,7 @@ impl Account {
             outputs_count * MIN_SECP_CELL_CAPACITY + estimate_fee(outputs_count);
         let (mut inputs, mut input_total_capacity) = (Vec::new(), 0);
 
+        println!("START account.transfer_forever");
         while let Ok(utxo) = utxo_receiver.recv() {
             input_total_capacity += utxo.capacity();
             inputs.push(utxo);
@@ -201,6 +202,7 @@ impl Account {
                 break;
             }
         }
+        println!("START account.transfer_forever");
     }
 
     pub fn privkey(&self) -> &Privkey {

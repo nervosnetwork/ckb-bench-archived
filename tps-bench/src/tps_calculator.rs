@@ -18,7 +18,7 @@ impl TPSCalculator {
     pub fn async_run(mut self) -> JoinHandle<()> {
         spawn(move || loop {
             self.update();
-            println!("tps: {}", self.tps());
+            self.print_tps();
             sleep(Duration::from_secs(10));
         })
     }
@@ -67,14 +67,28 @@ impl TPSCalculator {
         }
     }
 
-    pub fn tps(&self) -> f64 {
+    pub fn print_tps(&self) -> f64 {
         if self.recent_blocks.len() < 2 {
             return 0.0;
         }
 
-        let start_timestamp = self.recent_blocks.front().unwrap().timestamp();
-        let end_timestamp = self.recent_blocks.back().unwrap().timestamp();
-        let elapsed = end_timestamp.saturating_sub(start_timestamp);
-        self.recent_total_txns as f64 / elapsed as f64
+        let start_block = self.recent_blocks.front().unwrap();
+        let end_block = self.recent_blocks.back().unwrap();
+        let elapsed = end_block
+            .timestamp()
+            .saturating_sub(start_block.timestamp())
+            / 1000;
+        let tps = self.recent_total_txns as f64 / elapsed as f64;
+
+        println!(
+            "[{}, {}] txns: {}, elapsed: {}, tps: {}",
+            start_block.number(),
+            end_block.number(),
+            self.recent_total_txns,
+            elapsed,
+            tps,
+        );
+
+        tps
     }
 }
