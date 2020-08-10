@@ -200,7 +200,8 @@ impl Account {
                     "rpc.send_transaction_result: tx_pool_info: {:?}, tip_number: {}, info: {}, error: {:?}",
                     tx_pool_info, tip_number, info, err
                 );
-                panic!(message)
+                eprintln!("{}", message);
+                // panic!(message)
             }
 
             if duration.map(|d| start_time.elapsed() > d).unwrap_or(false) {
