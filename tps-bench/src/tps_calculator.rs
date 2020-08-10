@@ -6,7 +6,7 @@ use std::collections::VecDeque;
 use std::thread::{sleep, spawn, JoinHandle};
 use std::time::Duration;
 
-const RECENT_BLOCKS: usize = 60;
+const RECENT_BLOCKS: usize = 10;
 
 pub struct TPSCalculator {
     rpc: Jsonrpc,
@@ -19,7 +19,7 @@ impl TPSCalculator {
         spawn(move || loop {
             self.update();
             self.print_tps();
-            sleep(Duration::from_secs(10));
+            sleep(Duration::from_secs(1));
         })
     }
 
