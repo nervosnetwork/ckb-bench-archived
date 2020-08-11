@@ -19,7 +19,7 @@ use metrics_exporter_http::HttpExporter;
 use metrics_observer_prometheus::PrometheusBuilder;
 use metrics_runtime::Receiver;
 use simplelog::WriteLogger;
-use std::fs::OpenOptions;
+use std::fs::{File, OpenOptions};
 use std::net::SocketAddr;
 use std::sync::Mutex;
 use std::thread::{spawn, JoinHandle};
@@ -147,13 +147,24 @@ fn init_logger(config: &Config) {
         OpenOptions::new()
             .create(true)
             .write(true)
-            .open(&config.log_path())
+            .open(config.log_path())
             .unwrap(),
     )
     .unwrap();
     println!(
         "Log Path: {}",
         config.log_path().canonicalize().unwrap().to_string_lossy()
+    );
+
+    // dirty...
+    File::create(config.metrics_path()).unwrap();
+    println!(
+        "Metrics Path: {}",
+        config
+            .metrics_path()
+            .canonicalize()
+            .unwrap()
+            .to_string_lossy()
     );
 }
 
@@ -180,5 +191,5 @@ fn init_metrics(config: &Config) {
         tokio::spawn(exporter.async_run());
     });
 
-    println!("Metrics URL: {}", metrics_url);
+    // println!("Metrics URL: {}", metrics_url);
 }

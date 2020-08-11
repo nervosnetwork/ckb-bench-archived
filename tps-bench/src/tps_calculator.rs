@@ -116,6 +116,7 @@ impl TPSCalculator {
         tps
     }
 
+    // TODO metrics drain into file
     pub fn dump(&mut self, tps: f64) {
         self.metrics_file.set_len(0).unwrap();
         self.metrics_file
