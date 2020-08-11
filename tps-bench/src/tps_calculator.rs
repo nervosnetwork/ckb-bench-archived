@@ -87,7 +87,7 @@ impl TPSCalculator {
         let tps = self.recent_total_txns as f64 / elapsed as f64;
 
         info!(
-            "blocks[{}, {}] txns: {}, elapsed(secs): {}, tps: {}",
+            "blocks[{}, {}] txns: {}, elapsed(secs): {}, tps: {:.2}",
             start_block.number(),
             end_block.number(),
             self.recent_total_txns,
