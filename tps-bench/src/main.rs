@@ -16,11 +16,15 @@ use ckb_types::{h160, h256, H160, H256};
 use crossbeam_channel::bounded;
 use lazy_static::lazy_static;
 use log::{info, LevelFilter};
+use metrics_exporter_http::HttpExporter;
+use metrics_observer_prometheus::PrometheusBuilder;
+use metrics_runtime::Receiver;
 use simplelog::WriteLogger;
 use std::fs::{canonicalize, OpenOptions};
+use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Mutex;
-use std::thread::{spawn, JoinHandle};
+use std::thread::{sleep, spawn, JoinHandle};
 use std::time::Duration;
 
 pub mod miner;
@@ -111,6 +115,7 @@ fn main() {
         }
         CommandLine::BenchMode(config, duration) => {
             init_logger(&config);
+            init_metrics(&config);
             init_global_genesis_info(&config);
 
             let miner = Miner::new(config.clone(), &config.miner_private_key);
@@ -192,6 +197,26 @@ fn init_logger(config: &Config) {
             .unwrap(),
     )
     .unwrap();
-    println!("logpath: {:?}", canonicalize(&config.logpath).unwrap());
-    println!("")
+    println!("Log Path: {:?}", canonicalize(&config.logpath).unwrap());
+}
+
+// TODO It's just draft version, I don't really know how to init metrics service
+fn init_metrics(config: &Config) {
+    let listen = config.metrics_url.parse::<SocketAddr>().unwrap();
+    let receiver = Receiver::builder().build().unwrap();
+    let controller = receiver.controller();
+    let builder = PrometheusBuilder::new();
+    let exporter = HttpExporter::new(controller, builder, listen);
+
+    let runtime = tokio::runtime::Builder::default()
+        .threaded_scheduler()
+        .enable_all()
+        .build()
+        .unwrap();
+    runtime.handle().spawn(async {
+        tokio::spawn(exporter.async_run());
+    });
+
+    println!("Metrics URL: {}", config.metrics_url);
+    sleep(Duration::from_secs(10000));
 }

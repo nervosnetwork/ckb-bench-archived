@@ -2,6 +2,7 @@ use crate::config::Config;
 use crate::rpc::Jsonrpc;
 use ckb_types::core::BlockView;
 use log::info;
+use metrics::gauge;
 use std::cmp::max;
 use std::collections::VecDeque;
 use std::thread::{sleep, spawn, JoinHandle};
@@ -94,6 +95,8 @@ impl TPSCalculator {
             elapsed,
             tps,
         );
+
+        gauge!("tps", tps as i64);
 
         tps
     }

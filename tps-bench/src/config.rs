@@ -47,6 +47,7 @@ pub struct Config {
     pub transaction_type: TransactionType,
     #[serde(default)]
     pub start_miner: bool,
+    pub metrics_url: String,
 }
 
 fn default_logpath() -> String {
