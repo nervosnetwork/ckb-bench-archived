@@ -20,5 +20,6 @@ bencher_private_key = "878c4e481db45e0e1c65c2e17bc2bfdc01b35872b008497963ee723c7
 ## The transaction type, "1in1out", "2in2out", "3in3out"
 # transaction_type = "In2Out2"
 
-## The listened address of metrics service, outputs in prometheus format
-metrics_url = "127.0.0.1:8302"
+## The listened address of metrics service, outputs in prometheus format.
+## Default is empty, which means metrics service would not start.
+# metrics_url =
