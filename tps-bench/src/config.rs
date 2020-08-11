@@ -61,9 +61,6 @@ impl Config {
         let content = std::fs::read_to_string(filepath).map_err(|err| err.to_string())?;
         let config: Self = toml::from_str(&content).map_err(|err| err.to_string())?;
 
-        // TODO create logfile if not exists
-        // TODO return error if node rpc urls is empty
-
         create_dir_all(&config.data_dir).unwrap();
 
         Ok(config)

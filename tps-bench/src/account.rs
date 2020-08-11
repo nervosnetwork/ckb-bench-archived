@@ -48,7 +48,6 @@ impl Account {
             .build()
     }
 
-    // TODO improve monitor mechanism
     // TODO multiple rpcs
     // Search the blockchain `[from_number, to_number]` and return the live utxos owned by `privkey`
     pub fn pull_until(
