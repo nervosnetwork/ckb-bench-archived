@@ -3,7 +3,7 @@ use crate::rpc::Jsonrpc;
 use crate::transfer::{construct_unsigned_transaction, sign_transaction};
 use crate::util::estimate_fee;
 use crate::utxo::UTXO;
-use crate::{MIN_SECP_CELL_CAPACITY, SIGHASH_ALL_TYPE_HASH};
+use crate::{CELLBASE_MATURITY, MIN_SECP_CELL_CAPACITY, SIGHASH_ALL_TYPE_HASH};
 use ckb_crypto::secp::Privkey;
 use ckb_hash::blake2b_256;
 use ckb_types::core;
@@ -17,8 +17,6 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
-
-pub const CELLBASE_MATURITY: u64 = 10;
 
 #[derive(Clone)]
 pub struct Account {
@@ -229,7 +227,7 @@ impl Account {
 }
 
 fn is_matured(tip_number: BlockNumber, number: BlockNumber) -> bool {
-    tip_number > number + 1800 * CELLBASE_MATURITY
+    tip_number > number + 1800 * *CELLBASE_MATURITY.lock().unwrap()
 }
 
 fn retry_send(rpc: &Jsonrpc, transaction: &core::TransactionView) -> Result<(), String> {

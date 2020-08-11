@@ -23,3 +23,7 @@ bencher_private_key = "878c4e481db45e0e1c65c2e17bc2bfdc01b35872b008497963ee723c7
 ## The listened address of metrics service, outputs in prometheus format.
 ## Default is empty, which means metrics service would not start.
 # metrics_url =
+
+## consensus.cellbase_maturity
+## TODO: Add RPC get_consensus_params
+consensus_cellbase_maturity = 10

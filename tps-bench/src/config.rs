@@ -1,3 +1,4 @@
+use crate::CELLBASE_MATURITY;
 use serde_derive::{Deserialize, Serialize};
 use std::fs::create_dir_all;
 use std::ops::Deref;
@@ -50,6 +51,7 @@ pub struct Config {
     #[serde(default)]
     pub start_miner: bool,
     pub metrics_url: Option<String>,
+    pub consensus_cellbase_maturity: u64,
 }
 
 fn default_data_dir() -> String {
@@ -62,6 +64,8 @@ impl Config {
         let config: Self = toml::from_str(&content).map_err(|err| err.to_string())?;
 
         create_dir_all(&config.data_dir).unwrap();
+
+        *CELLBASE_MATURITY.lock().unwrap() = config.consensus_cellbase_maturity;
 
         Ok(config)
     }

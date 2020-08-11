@@ -8,11 +8,10 @@ use crate::genesis_info::{global_genesis_info, init_global_genesis_info};
 use crate::miner::Miner;
 use crate::rpc::Jsonrpc;
 use crate::tps_calculator::TPSCalculator;
-use ckb_crypto::secp::{Privkey, Pubkey};
-use ckb_types::core::{DepType, ScriptHashType};
-use ckb_types::packed::{Byte32, CellDep, OutPoint, Script};
+use ckb_types::core::DepType;
+use ckb_types::packed::{Byte32, CellDep, OutPoint};
 use ckb_types::prelude::*;
-use ckb_types::{h160, h256, H160, H256};
+use ckb_types::{h256, H256};
 use crossbeam_channel::bounded;
 use lazy_static::lazy_static;
 use log::{info, LevelFilter};
@@ -22,7 +21,6 @@ use metrics_runtime::Receiver;
 use simplelog::WriteLogger;
 use std::fs::OpenOptions;
 use std::net::SocketAddr;
-use std::str::FromStr;
 use std::sync::Mutex;
 use std::thread::{spawn, JoinHandle};
 use std::time::Duration;
@@ -38,62 +36,13 @@ pub mod rpc;
 pub mod tps_calculator;
 pub mod utxo;
 
-/// Bench Account Info, type `ckb-cli util key-info <privkey-path>` to generate the account info,
-///
-/// ```ignore
-/// $ cat privkey.txt
-/// 1111111111111111111111111111111111111111111111111111111111111111
-///
-/// $ ckb-cli util key-info --privkey-path privkey.txt
-/// Put this config in < ckb.toml >:
-///
-/// [block_assembler]
-/// code_hash = "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8"
-/// hash_type = "type"
-/// args = "0xf949a9cc83edefcd580eb3f0f3bae187c4d008db"
-/// message = "0x"
-///
-/// address:
-///   mainnet: ckb1qyq0jjdfejp7mm7dtq8t8u8nhtsc03xsprdsqk6hek
-///   testnet: ckt1qyq0jjdfejp7mm7dtq8t8u8nhtsc03xsprdsanyg42
-/// lock_arg: 0xf949a9cc83edefcd580eb3f0f3bae187c4d008db
-/// lock_hash: 0x827da7c1bd9514ed493a6e9c54cb614865d474d49a6e8f753ce4a472cf8c5fe8
-/// pubkey: 034f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa
-/// ```
-pub const BENCH_ACCOUNT_PRIVATE_KEY_STR: &str =
-    "1111111111111111111111111111111111111111111111111111111111111111";
-pub const BENCH_ACCOUNT_PUBLIC_KEY_STR: &str =
-    "034f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa";
-pub const BENCH_ACCOUNT_ADDRESS_STR: &str = "ckt1qyq0jjdfejp7mm7dtq8t8u8nhtsc03xsprdsanyg42";
-pub const BENCH_ACCOUNT_LOCK_ARG: H160 = h160!("0xf949a9cc83edefcd580eb3f0f3bae187c4d008db");
-lazy_static! {
-    static ref BENCH_ACCOUNT_PRIVATE_KEY: Privkey =
-        Privkey::from_str(BENCH_ACCOUNT_PRIVATE_KEY_STR).unwrap();
-    static ref BENCH_ACCOUNT_PUBLIC_KEY: Pubkey = BENCH_ACCOUNT_PRIVATE_KEY.pubkey().unwrap();
-    static ref BENCH_ACCOUNT_LOCK_SCRIPT: Script = Script::new_builder()
-        .args(BENCH_ACCOUNT_LOCK_ARG.0.pack())
-        .code_hash(SIGHASH_ALL_TYPE_HASH.pack())
-        .hash_type(ScriptHashType::Type.into())
-        .build();
-    static ref BENCH_ACCOUNT_LOCK_HASH: Byte32 = BENCH_ACCOUNT_LOCK_SCRIPT.calc_script_hash();
-}
 pub const MIN_SECP_CELL_CAPACITY: u64 = 61_0000_0000;
-
-/// Network Parameters
-pub const BLOCK_TIME: Duration = Duration::from_secs(2);
-pub const SYSTEM_TRANSACTION_INDEX: usize = 0;
-pub const DEP_GROUP_TRANSACTION_INDEX: usize = 1;
-pub const SIGHASH_ALL_SYSTEM_CELL_INDEX: usize = 1;
 pub const SIGHASH_ALL_DEP_GROUP_CELL_INDEX: usize = 0;
 pub const SIGHASH_ALL_TYPE_HASH: H256 =
     h256!("0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8");
-lazy_static! {
-    // The `[block_assembler]` configured in ckb node ckb.toml
-    static ref CKB_BLOCK_ASSMEBLER_LOCK_HASH: Mutex<Byte32> = Mutex::new(Default::default());
 
-    static ref SIGHASH_ALL_DEP_GROUP_TX_HASH: Byte32 = {
-        global_genesis_info().dep_group_tx_hash()
-    };
+lazy_static! {
+    static ref SIGHASH_ALL_DEP_GROUP_TX_HASH: Byte32 = global_genesis_info().dep_group_tx_hash();
     static ref SIGHASH_ALL_CELL_DEP_OUT_POINT: OutPoint = OutPoint::new_builder()
         .tx_hash(SIGHASH_ALL_DEP_GROUP_TX_HASH.clone())
         .index(SIGHASH_ALL_DEP_GROUP_CELL_INDEX.pack())
@@ -102,6 +51,10 @@ lazy_static! {
         .out_point(SIGHASH_ALL_CELL_DEP_OUT_POINT.clone())
         .dep_type(DepType::DepGroup.into())
         .build();
+}
+
+lazy_static! {
+    pub static ref CELLBASE_MATURITY: Mutex<u64> = Mutex::new(0);
 }
 
 fn main() {

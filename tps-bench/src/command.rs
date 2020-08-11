@@ -3,7 +3,6 @@ use std::time::Duration;
 
 pub const MINE_SUBCOMMAND: &str = "mine";
 pub const BENCH_SUBCOMMAND: &str = "bench";
-pub const INIT_BENCH_ACCOUNT_SUBCOMMAND: &str = "init_bench_account";
 
 #[derive(Debug, Clone)]
 pub enum CommandLine {
@@ -36,10 +35,6 @@ pub fn commandline() -> CommandLine {
                         .required(false)
                         .validator(|s| s.parse::<u64>().map(|_| ()).map_err(|err| err.to_string())),
                 ),
-        )
-        .subcommand(
-            clap::SubCommand::with_name(INIT_BENCH_ACCOUNT_SUBCOMMAND)
-                .about("init cells for bench account"),
         )
         .get_matches();
 
