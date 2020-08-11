@@ -1,0 +1,24 @@
+# logpath = "bench.log"
+
+## The nodes' rpc urls.
+node_urls = [
+    "http://127.0.0.1:8301",
+]
+
+miner_private_key   = "878c4e481db45e0e1c65c2e17bc2bfdc01b35872b008497963ee723c720246ac"
+bencher_private_key = "878c4e481db45e0e1c65c2e17bc2bfdc01b35872b008497963ee723c720246ac"
+
+## When `start_miner` is true, it will start a dummy miner to generate
+## blocks based `block_time`; Otherwise no miner be started.
+##
+## As for staging/testnet/mainnet networks, these networks have their owned miners,
+## so `start_miner` should be set to false;
+## as for personal dummy network, `start_miner` setted to true is convenion.
+# start_miner = false
+# block_time = 1000 # ms
+# 
+## The transaction type, "1in1out", "2in2out", "3in3out"
+# transaction_type = "In2Out2"
+
+## The listened address of metrics service, outputs in prometheus format
+metrics_url = "127.0.0.1:8302"
