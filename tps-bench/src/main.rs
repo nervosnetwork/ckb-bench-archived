@@ -192,6 +192,7 @@ fn init_logger(config: &Config) {
         LevelFilter::Info,
         Default::default(),
         OpenOptions::new()
+            .create(true)
             .write(true)
             .open(&config.log_path())
             .unwrap(),

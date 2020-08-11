@@ -37,6 +37,7 @@ impl TPSCalculator {
             Err(err) => prompt_and_exit!("Jsonrpc::connect({}) error: {}", url.as_str(), err),
         };
         let metrics_file = OpenOptions::new()
+            .create(true)
             .write(true)
             .open(config.metrics_path())
             .unwrap();
@@ -112,6 +113,9 @@ impl TPSCalculator {
 
     pub fn dump(&mut self, tps: f64) {
         self.metrics_file.set_len(0).unwrap();
-        self.metrics_file.write(tps.to_string().as_bytes()).unwrap();
+        self.metrics_file
+            .write_all(tps.to_string().as_bytes())
+            .unwrap();
+        self.metrics_file.flush().unwrap();
     }
 }
