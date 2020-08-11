@@ -105,6 +105,7 @@ impl TPSCalculator {
             elapsed,
             tps,
         );
+        log::logger().flush(); // Q: why it does flush automatically?
 
         gauge!("tps", tps as i64);
 
