@@ -12,6 +12,7 @@ use ckb_types::packed::{Byte32, CellOutput, OutPoint, Script};
 use ckb_types::prelude::*;
 use ckb_types::H160;
 use crossbeam_channel::{Receiver, Sender};
+use log::info;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::thread::sleep;
@@ -155,7 +156,7 @@ impl Account {
             outputs_count * MIN_SECP_CELL_CAPACITY + estimate_fee(outputs_count);
         let (mut inputs, mut input_total_capacity) = (Vec::new(), 0);
 
-        println!("START account.transfer_forever");
+        info!("START account.transfer_forever");
         while let Ok(utxo) = utxo_receiver.recv() {
             input_total_capacity += utxo.capacity();
             inputs.push(utxo);
@@ -194,7 +195,7 @@ impl Account {
                 break;
             }
         }
-        println!("START account.transfer_forever");
+        info!("START account.transfer_forever");
     }
 
     pub fn privkey(&self) -> &Privkey {

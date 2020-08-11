@@ -1,6 +1,7 @@
 use crate::config::Config;
 use crate::rpc::Jsonrpc;
 use ckb_types::core::BlockView;
+use log::info;
 use std::cmp::max;
 use std::collections::VecDeque;
 use std::thread::{sleep, spawn, JoinHandle};
@@ -17,8 +18,9 @@ pub struct TPSCalculator {
 impl TPSCalculator {
     pub fn async_run(mut self) -> JoinHandle<()> {
         spawn(move || loop {
-            self.update();
-            self.print_tps();
+            if self.update() {
+                self.print_tps();
+            }
             sleep(Duration::from_secs(1));
         })
     }
@@ -36,7 +38,7 @@ impl TPSCalculator {
         }
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self) -> bool {
         let tip_number = self.rpc.get_tip_block_number();
         let recent_number = self
             .recent_blocks
@@ -44,7 +46,9 @@ impl TPSCalculator {
             .map(|block| block.number())
             .unwrap_or(0);
 
+        let mut updated = false;
         if tip_number > recent_number {
+            updated = true;
             let start_number = max(
                 tip_number.saturating_sub(RECENT_BLOCKS as u64),
                 recent_number + 1,
@@ -65,6 +69,8 @@ impl TPSCalculator {
                 }
             }
         }
+
+        updated
     }
 
     pub fn print_tps(&self) -> f64 {
@@ -80,8 +86,8 @@ impl TPSCalculator {
             / 1000;
         let tps = self.recent_total_txns as f64 / elapsed as f64;
 
-        println!(
-            "[{}, {}] txns: {}, elapsed: {}, tps: {}",
+        info!(
+            "blocks[{}, {}] txns: {}, elapsed(secs): {}, tps: {}",
             start_block.number(),
             end_block.number(),
             self.recent_total_txns,

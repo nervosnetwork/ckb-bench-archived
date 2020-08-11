@@ -4,6 +4,7 @@ use crate::prompt_and_exit;
 use crate::rpc::Jsonrpc;
 use ckb_types::packed::{self, Block, Script};
 use failure::_core::time::Duration;
+use log::{error, info};
 use std::ops::Deref;
 use std::thread::{sleep, spawn};
 
@@ -42,9 +43,9 @@ impl Miner {
         let block: Block = template.into();
 
         if let Some(block_hash) = self.rpc.submit_block(work_id.to_string(), block.into()) {
-            println!("submit block  #{} {:#x}", block_number, block_hash);
+            info!("submit block  #{} {:#x}", block_number, block_hash);
         } else {
-            eprintln!("submit block  #{} None", block_number);
+            error!("submit block  #{} None", block_number);
         }
     }
 
@@ -57,7 +58,7 @@ impl Miner {
     pub fn wait_txpool_empty(&self, start_miner: bool) {
         let rpc = self.rpc.clone();
 
-        println!("START miner.wait_txpool_empty");
+        info!("START miner.wait_txpool_empty");
         loop {
             let tx_pool_info = rpc.tx_pool_info();
             if tx_pool_info.pending.value() == 0 && tx_pool_info.proposed.value() == 0 {
@@ -68,14 +69,14 @@ impl Miner {
             }
             sleep(Duration::from_secs(1));
         }
-        println!("DONE miner.wait_txpool_empty");
+        info!("DONE miner.wait_txpool_empty");
     }
 
     /// Run a miner background to generate blocks forever, in the configured frequency.
     pub fn async_mine(&self) {
         let block_time = Duration::from_millis(self.config.block_time);
 
-        println!("Miner.async_run");
+        info!("miner.async_run");
         let miner = self.clone();
         spawn(move || loop {
             sleep(block_time);

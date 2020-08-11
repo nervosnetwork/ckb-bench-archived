@@ -36,13 +36,21 @@ impl Deref for Url {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Config {
+    #[serde(default = "default_logpath")]
     pub logpath: String,
     pub bencher_private_key: String,
     pub miner_private_key: String,
     pub node_urls: Vec<Url>,
+    #[serde(default)]
     pub block_time: u64, // in milliseconds
+    #[serde(default)]
     pub transaction_type: TransactionType,
+    #[serde(default)]
     pub start_miner: bool,
+}
+
+fn default_logpath() -> String {
+    String::from("bench.log")
 }
 
 impl Config {

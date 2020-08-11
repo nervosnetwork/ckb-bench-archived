@@ -17,3 +17,4 @@ tmp
 data/
 target/
 config.toml
+*.log

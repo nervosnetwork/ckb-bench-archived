@@ -11,7 +11,6 @@ ckb-jsonrpc-types = { git = "https://github.com/nervosnetwork/ckb.git", rev = "6
 ckb-types = { git = "https://github.com/nervosnetwork/ckb.git", rev = "69097a0a" }
 ckb-hash = { git = "https://github.com/nervosnetwork/ckb.git", rev = "69097a0a" }
 ckb-util = { git = "https://github.com/nervosnetwork/ckb.git", rev = "69097a0a" }
-ckb-logger = { git = "https://github.com/nervosnetwork/ckb.git", rev = "69097a0a" }
 ckb-crypto = { git = "https://github.com/nervosnetwork/ckb.git", rev = "69097a0a" }
 ckb-chain-spec = { git = "https://github.com/nervosnetwork/ckb.git", rev = "69097a0a" }
 
@@ -33,8 +32,9 @@ jsonrpc-server-utils = "10.1"
 jsonrpc-core = "10.1"
 jsonrpc-derive = "10.1"
 reqwest = "0.9.16"
-log = "0.4"
 lazy_static = "1.3.0"
 jsonrpc-client-core = "0.5.0"
 jsonrpc-client-http = "0.5.0"
 hyper = "0.11.27"
+log = "0.4"
+simplelog = "^0.7.6"

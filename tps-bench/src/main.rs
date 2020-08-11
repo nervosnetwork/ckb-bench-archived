@@ -3,7 +3,7 @@ extern crate clap;
 
 use crate::account::Account;
 use crate::command::{commandline, CommandLine};
-use crate::config::{TransactionType, Url};
+use crate::config::{Config, TransactionType, Url};
 use crate::genesis_info::{global_genesis_info, init_global_genesis_info};
 use crate::miner::Miner;
 use crate::rpc::Jsonrpc;
@@ -15,6 +15,9 @@ use ckb_types::prelude::*;
 use ckb_types::{h160, h256, H160, H256};
 use crossbeam_channel::bounded;
 use lazy_static::lazy_static;
+use log::{info, LevelFilter};
+use simplelog::WriteLogger;
+use std::fs::File;
 use std::str::FromStr;
 use std::sync::Mutex;
 use std::thread::{spawn, JoinHandle};
@@ -100,12 +103,14 @@ lazy_static! {
 fn main() {
     match commandline() {
         CommandLine::MineMode(config, blocks) => {
+            init_logger(&config);
             init_global_genesis_info(&config);
 
             let miner = Miner::new(config.clone(), &config.miner_private_key);
             miner.generate_blocks(blocks)
         }
         CommandLine::BenchMode(config, duration) => {
+            init_logger(&config);
             init_global_genesis_info(&config);
 
             let miner = Miner::new(config.clone(), &config.miner_private_key);
@@ -149,9 +154,9 @@ fn run_account_threads(
 ) -> JoinHandle<()> {
     let (utxo_sender, utxo_receiver) = bounded(2000);
     let cursor_number = rpc.get_tip_block_number();
-    println!("START account.pull_until");
+    info!("START account.pull_until");
     let (matureds, unmatureds) = sender.pull_until(&rpc, cursor_number);
-    println!("DONE account.pull_until");
+    info!("DONE account.pull_until");
     let sender_clone = sender.clone();
     let rpc_clone = rpc.clone();
     spawn(move || {
@@ -175,4 +180,13 @@ fn connect_jsonrpcs(urls: &[Url]) -> Vec<Jsonrpc> {
         }
     }
     rpcs
+}
+
+fn init_logger(config: &Config) {
+    WriteLogger::init(
+        LevelFilter::Info,
+        Default::default(),
+        File::create(&config.logpath).unwrap(),
+    )
+    .unwrap();
 }
