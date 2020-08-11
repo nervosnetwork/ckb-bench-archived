@@ -20,11 +20,11 @@ use metrics_exporter_http::HttpExporter;
 use metrics_observer_prometheus::PrometheusBuilder;
 use metrics_runtime::Receiver;
 use simplelog::WriteLogger;
-use std::fs::{canonicalize, OpenOptions};
+use std::fs::OpenOptions;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Mutex;
-use std::thread::{sleep, spawn, JoinHandle};
+use std::thread::{spawn, JoinHandle};
 use std::time::Duration;
 
 pub mod miner;
@@ -193,16 +193,25 @@ fn init_logger(config: &Config) {
         Default::default(),
         OpenOptions::new()
             .write(true)
-            .open(&config.logpath)
+            .open(&config.log_path())
             .unwrap(),
     )
     .unwrap();
-    println!("Log Path: {:?}", canonicalize(&config.logpath).unwrap());
+    println!(
+        "Log Path: {}",
+        config.log_path().canonicalize().unwrap().to_string_lossy()
+    );
 }
 
 // TODO It's just draft version, I don't really know how to init metrics service
 fn init_metrics(config: &Config) {
-    let listen = config.metrics_url.parse::<SocketAddr>().unwrap();
+    if config.metrics_url.is_none() {
+        println!("No start metrics service");
+        return;
+    }
+
+    let metrics_url = config.metrics_url.as_ref().unwrap();
+    let listen = metrics_url.parse::<SocketAddr>().unwrap();
     let receiver = Receiver::builder().build().unwrap();
     let controller = receiver.controller();
     let builder = PrometheusBuilder::new();
@@ -217,6 +226,5 @@ fn init_metrics(config: &Config) {
         tokio::spawn(exporter.async_run());
     });
 
-    println!("Metrics URL: {}", config.metrics_url);
-    sleep(Duration::from_secs(10000));
+    println!("Metrics URL: {}", metrics_url);
 }

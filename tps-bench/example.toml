@@ -1,4 +1,4 @@
-# logpath = "bench.log"
+data_dir = "data"
 
 ## The nodes' rpc urls.
 node_urls = [

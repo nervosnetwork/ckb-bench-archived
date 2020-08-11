@@ -1,5 +1,7 @@
 use serde_derive::{Deserialize, Serialize};
+use std::fs::create_dir_all;
 use std::ops::Deref;
+use std::path::PathBuf;
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy)]
 pub enum TransactionType {
@@ -36,8 +38,8 @@ impl Deref for Url {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Config {
-    #[serde(default = "default_logpath")]
-    pub logpath: String,
+    #[serde(default = "default_data_dir")]
+    pub data_dir: String,
     pub bencher_private_key: String,
     pub miner_private_key: String,
     pub node_urls: Vec<Url>,
@@ -47,11 +49,11 @@ pub struct Config {
     pub transaction_type: TransactionType,
     #[serde(default)]
     pub start_miner: bool,
-    pub metrics_url: String,
+    pub metrics_url: Option<String>,
 }
 
-fn default_logpath() -> String {
-    String::from("bench.log")
+fn default_data_dir() -> String {
+    String::from("data")
 }
 
 impl Config {
@@ -62,6 +64,16 @@ impl Config {
         // TODO create logfile if not exists
         // TODO return error if node rpc urls is empty
 
+        create_dir_all(&config.data_dir).unwrap();
+
         Ok(config)
+    }
+
+    pub fn log_path(&self) -> PathBuf {
+        PathBuf::from(&self.data_dir).join("bench.log")
+    }
+
+    pub fn metrics_path(&self) -> PathBuf {
+        PathBuf::from(&self.data_dir).join("metrics.json")
     }
 }

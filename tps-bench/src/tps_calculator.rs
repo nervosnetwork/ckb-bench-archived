@@ -5,6 +5,8 @@ use log::info;
 use metrics::gauge;
 use std::cmp::max;
 use std::collections::VecDeque;
+use std::fs::{File, OpenOptions};
+use std::io::Write;
 use std::thread::{sleep, spawn, JoinHandle};
 use std::time::Duration;
 
@@ -14,13 +16,15 @@ pub struct TPSCalculator {
     rpc: Jsonrpc,
     recent_blocks: VecDeque<BlockView>,
     recent_total_txns: u64,
+    metrics_file: File,
 }
 
 impl TPSCalculator {
     pub fn async_run(mut self) -> JoinHandle<()> {
         spawn(move || loop {
             if self.update() {
-                self.print_tps();
+                let tps = self.print_tps();
+                self.dump(tps);
             }
             sleep(Duration::from_secs(1));
         })
@@ -32,10 +36,15 @@ impl TPSCalculator {
             Ok(rpc) => rpc,
             Err(err) => prompt_and_exit!("Jsonrpc::connect({}) error: {}", url.as_str(), err),
         };
+        let metrics_file = OpenOptions::new()
+            .write(true)
+            .open(config.metrics_path())
+            .unwrap();
         TPSCalculator {
             rpc,
             recent_blocks: Default::default(),
             recent_total_txns: 0,
+            metrics_file,
         }
     }
 
@@ -99,5 +108,10 @@ impl TPSCalculator {
         gauge!("tps", tps as i64);
 
         tps
+    }
+
+    pub fn dump(&mut self, tps: f64) {
+        self.metrics_file.set_len(0).unwrap();
+        self.metrics_file.write(tps.to_string().as_bytes()).unwrap();
     }
 }
