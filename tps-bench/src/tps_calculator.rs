@@ -95,7 +95,11 @@ impl TPSCalculator {
             .timestamp()
             .saturating_sub(start_block.timestamp())
             / 1000;
-        let tps = self.recent_total_txns as f64 / elapsed as f64;
+        let tps = if elapsed == 0 {
+            self.recent_total_txns as f64
+        } else {
+            self.recent_total_txns as f64 / elapsed as f64
+        };
 
         info!(
             "blocks[{}, {}] txns: {}, elapsed(secs): {}, tps: {:.2}",
