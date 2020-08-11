@@ -17,7 +17,7 @@ use crossbeam_channel::bounded;
 use lazy_static::lazy_static;
 use log::{info, LevelFilter};
 use simplelog::WriteLogger;
-use std::fs::File;
+use std::fs::{canonicalize, File};
 use std::str::FromStr;
 use std::sync::Mutex;
 use std::thread::{spawn, JoinHandle};
@@ -189,4 +189,6 @@ fn init_logger(config: &Config) {
         File::create(&config.logpath).unwrap(),
     )
     .unwrap();
+    println!("logpath: {:?}", canonicalize(&config.logpath).unwrap());
+    println!("")
 }
