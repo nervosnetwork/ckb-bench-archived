@@ -1,4 +1,4 @@
-data_dir = "data"
+data_dir = "tpsbench"
 
 ## The nodes' rpc urls.
 node_urls = [
