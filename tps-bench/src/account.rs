@@ -55,7 +55,15 @@ impl Account {
     ) -> (Vec<UTXO>, Vec<(BlockNumber, UTXO)>) {
         let mut unmatureds: HashMap<OutPoint, (BlockNumber, CellOutput)> = HashMap::default();
         let mut utxoset: HashMap<OutPoint, CellOutput> = HashMap::default();
+
+        let start_time = Instant::now();
+        let mut last_print = Instant::now();
         for number in 0..=until_number {
+            if last_print.elapsed() > Duration::from_secs(10) {
+                last_print = Instant::now();
+                info!("synchronization progress ({}/{}) ...", number, until_number);
+            }
+
             let block: core::BlockView = rpc
                 .get_block_by_number(number)
                 .expect("get_block_by_number")
@@ -80,6 +88,7 @@ impl Account {
                 );
             }
         }
+        info!("complete synchronization, took {:?}", start_time.elapsed());
 
         let mut unmatureds: Vec<_> = unmatureds
             .into_iter()
