@@ -23,8 +23,7 @@ impl TPSCalculator {
     pub fn async_run(mut self) -> JoinHandle<()> {
         spawn(move || loop {
             if self.update() {
-                let tps = self.print_tps();
-                self.dump(tps);
+                self.print_tps();
             }
             sleep(Duration::from_secs(1));
         })
@@ -84,9 +83,9 @@ impl TPSCalculator {
         updated
     }
 
-    pub fn print_tps(&self) -> f64 {
+    pub fn print_tps(&mut self) {
         if self.recent_blocks.len() < 2 {
-            return 0.0;
+            return;
         }
 
         let start_block = self.recent_blocks.front().unwrap();
@@ -95,33 +94,32 @@ impl TPSCalculator {
             .timestamp()
             .saturating_sub(start_block.timestamp())
             / 1000;
+        let average_block_time = elapsed / self.recent_blocks.len() as u64;
+        let average_block_transactions = self.recent_total_txns / self.recent_blocks.len() as u64;
         let tps = if elapsed == 0 {
             self.recent_total_txns as f64
         } else {
             self.recent_total_txns as f64 / elapsed as f64
         };
+        let json = serde_json::json!({
+            "start_block_number": start_block.number(),
+            "end_block_number": end_block.number(),
+            "tps": format!("{:.2}", tps),
+            "average_block_time_secs": average_block_time,
+            "average_block_transactions": average_block_transactions,
+        });
 
-        info!(
-            "blocks[{}, {}] txns: {}, elapsed(secs): {}, tps: {:.2}",
-            start_block.number(),
-            end_block.number(),
-            self.recent_total_txns,
-            elapsed,
-            tps,
-        );
-        log::logger().flush(); // Q: why it does flush automatically?
+        self.metrics_file.set_len(0).unwrap();
+        serde_json::to_writer_pretty(&self.metrics_file, &json).unwrap();
+        self.metrics_file.flush().unwrap();
+
+        info!("metrics: {}", json.to_string());
 
         gauge!("tps", tps as i64);
-
-        tps
-    }
-
-    // TODO metrics drain into file
-    pub fn dump(&mut self, tps: f64) {
-        self.metrics_file.set_len(0).unwrap();
-        self.metrics_file
-            .write_all(tps.to_string().as_bytes())
-            .unwrap();
-        self.metrics_file.flush().unwrap();
+        gauge!("average_block_time", average_block_time as i64);
+        gauge!(
+            "average_block_transactions",
+            average_block_transactions as i64
+        );
     }
 }

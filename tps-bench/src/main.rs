@@ -146,7 +146,7 @@ fn init_logger(config: &Config) {
         Default::default(),
         OpenOptions::new()
             .create(true)
-            .write(true)
+            .append(true)
             .open(config.log_path())
             .unwrap(),
     )

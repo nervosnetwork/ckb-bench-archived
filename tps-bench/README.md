@@ -11,8 +11,6 @@ The default data directory (configured via `data_dir`) is `./tpsbench`, two file
 
 ## TODO
 
-  * Default config.toml, and support command option `--rpc-urls`
   * Support "protocols://username:password@url"
-  * Output average block time
   * The relation between the average block time and TPS
   * The relation between the send transaction rate and TPS
