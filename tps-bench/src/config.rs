@@ -53,8 +53,8 @@ impl Config {
         }
     }
 
-    pub fn rpc_urls(&self) -> &Vec<Url> {
-        &self.rpc_urls
+    pub fn rpc_urls(&self) -> Vec<&str> {
+        self.rpc_urls.iter().map(|url| url.as_str()).collect()
     }
 
     pub fn spec(&self) -> &Spec {

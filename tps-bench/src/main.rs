@@ -3,10 +3,11 @@ extern crate clap;
 
 use crate::account::Account;
 use crate::command::{commandline, CommandLine};
-use crate::config::{Config, TransactionType, Url};
+use crate::config::{Config, TransactionType};
 use crate::genesis_info::{global_genesis_info, init_global_genesis_info};
 use crate::miner::Miner;
 use crate::rpc::Jsonrpc;
+use crate::rpcs::Jsonrpcs;
 use crate::tps_calculator::TPSCalculator;
 use ckb_types::core::DepType;
 use ckb_types::packed::{Byte32, CellDep, OutPoint};
@@ -26,6 +27,7 @@ use std::thread::{spawn, JoinHandle};
 use std::time::Duration;
 
 pub mod miner;
+pub mod rpcs;
 pub mod transfer;
 pub mod util;
 pub mod account;
@@ -73,7 +75,7 @@ fn main() {
 
             let miner = Miner::new(config.clone(), &config.miner_private_key);
             let bencher = Account::new(&config.bencher_private_key);
-            let rpcs = connect_jsonrpcs(config.rpc_urls());
+            let rpcs = Jsonrpcs::connect_all(config.rpc_urls()).unwrap();
 
             if config.start_miner {
                 miner.async_mine();
@@ -85,7 +87,7 @@ fn main() {
                 let _ = run_account_threads(
                     miner.account().clone(),
                     bencher.clone(),
-                    rpcs[0].clone(),
+                    rpcs.clone(),
                     config.transaction_type,
                     config.seconds().map(|secs| Duration::from_secs(secs)),
                 );
@@ -93,7 +95,7 @@ fn main() {
             run_account_threads(
                 bencher.clone(),
                 bencher.clone(),
-                rpcs[0].clone(),
+                rpcs.clone(),
                 config.transaction_type,
                 config.seconds().map(|secs| Duration::from_secs(secs)),
             )
@@ -106,38 +108,26 @@ fn main() {
 fn run_account_threads(
     sender: Account,
     recipient: Account,
-    rpc: Jsonrpc,
+    rpcs: Jsonrpcs,
     transaction_type: TransactionType,
     duration: Option<Duration>,
 ) -> JoinHandle<()> {
     let (utxo_sender, utxo_receiver) = bounded(2000);
-    let cursor_number = rpc.get_tip_block_number();
+    let cursor_number = rpcs.get_fixed_tip_number();
     info!("START account.pull_until");
-    let (matureds, unmatureds) = sender.pull_until(&rpc, cursor_number);
+    let (matureds, unmatureds) = sender.pull_until(&rpcs, cursor_number);
     info!("DONE account.pull_until");
     let sender_clone = sender.clone();
-    let rpc_clone = rpc.clone();
+    let rpcs_clone = rpcs.clone();
     spawn(move || {
         matureds.into_iter().for_each(|utxo| {
             utxo_sender.send(utxo).unwrap();
         });
-        sender_clone.pull_forever(rpc_clone, cursor_number, unmatureds, utxo_sender);
+        sender_clone.pull_forever(rpcs_clone, cursor_number, unmatureds, utxo_sender);
     });
     spawn(move || {
-        sender.transfer_forever(recipient, rpc, utxo_receiver, transaction_type, duration)
+        sender.transfer_forever(recipient, rpcs, utxo_receiver, transaction_type, duration)
     })
-}
-
-fn connect_jsonrpcs(urls: &[Url]) -> Vec<Jsonrpc> {
-    let nnode = urls.len();
-    let mut rpcs = Vec::with_capacity(nnode);
-    for url in urls.iter() {
-        match Jsonrpc::connect(url.as_str()) {
-            Ok(rpc) => rpcs.push(rpc),
-            Err(err) => prompt_and_exit!("Jsonrpc::connect({}) error: {}", url.as_str(), err),
-        }
-    }
-    rpcs
 }
 
 fn init_logger(config: &Config) {

@@ -1,5 +1,6 @@
 use crate::config::TransactionType;
 use crate::rpc::Jsonrpc;
+use crate::rpcs::Jsonrpcs;
 use crate::transfer::{construct_unsigned_transaction, sign_transaction};
 use crate::util::estimate_fee;
 use crate::utxo::UTXO;
@@ -11,11 +12,11 @@ use ckb_types::core::{BlockNumber, ScriptHashType};
 use ckb_types::packed::{Byte32, CellOutput, OutPoint, Script};
 use ckb_types::prelude::*;
 use ckb_types::H160;
-use crossbeam_channel::{Receiver, Sender};
+use crossbeam_channel::{bounded, Receiver, Sender};
 use log::info;
 use std::collections::HashMap;
 use std::str::FromStr;
-use std::thread::sleep;
+use std::thread::{sleep, spawn};
 use std::time::{Duration, Instant};
 
 #[derive(Clone)]
@@ -107,17 +108,18 @@ impl Account {
     /// Search (from_number, infinity)
     pub fn pull_forever(
         &self,
-        rpc: Jsonrpc,
+        rpcs: Jsonrpcs,
         from_number: BlockNumber,
         mut unmatureds: Vec<(BlockNumber, UTXO)>,
         utxo_sender: Sender<UTXO>,
     ) {
         let mut number = from_number;
         loop {
-            let tip_number = rpc.get_tip_block_number();
+            let tip_number = rpcs.get_fixed_tip_number();
             while number < tip_number {
                 number += 1;
-                let block: core::BlockView = rpc
+
+                let block: core::BlockView = rpcs
                     .get_block_by_number(number)
                     .expect("get_block_by_number")
                     .into();
@@ -151,7 +153,7 @@ impl Account {
     pub fn transfer_forever(
         &self,
         recipient: Account,
-        rpc: Jsonrpc,
+        rpcs: Jsonrpcs,
         utxo_receiver: Receiver<UTXO>,
         transaction_type: TransactionType,
         duration: Option<Duration>,
@@ -162,7 +164,25 @@ impl Account {
             outputs_count * MIN_SECP_CELL_CAPACITY + estimate_fee(outputs_count);
         let (mut inputs, mut input_total_capacity) = (Vec::new(), 0);
 
+        let senders = rpcs
+            .endpoints()
+            .iter()
+            .map(|rpc| {
+                let rpc = rpc.clone();
+                let (sender, receiver) = bounded(1000);
+                spawn(move || {
+                    while let Ok(transaction) = receiver.recv() {
+                        if let Err(err) = retry_send(&rpc, &transaction) {
+                            panic!(err)
+                        }
+                    }
+                });
+                sender
+            })
+            .collect::<Vec<_>>();
+
         info!("START account.transfer_forever");
+        let mut cursor = 0;
         while let Ok(utxo) = utxo_receiver.recv() {
             input_total_capacity += utxo.capacity();
             inputs.push(utxo);
@@ -176,27 +196,10 @@ impl Account {
                 construct_unsigned_transaction(&recipient, inputs.split_off(0), outputs_count);
             let signed_transaction = sign_transaction(&self, raw_transaction);
 
-            let tip_number = rpc.get_tip_block_number();
-            let tx_pool_info = rpc.tx_pool_info();
-            if let Err(err) = retry_send(&rpc, &signed_transaction) {
-                let info = signed_transaction
-                    .input_pts_iter()
-                    .map(|input| {
-                        format!(
-                            "input.tx_hash: {}, input.index: {}",
-                            input.tx_hash(),
-                            input.index()
-                        )
-                    })
-                    .collect::<Vec<_>>()
-                    .join(";");
-                let message = format!(
-                    "rpc.send_transaction_result: tx_pool_info: {:?}, tip_number: {}, info: {}, error: {:?}",
-                    tx_pool_info, tip_number, info, err
-                );
-                panic!(message)
+            cursor = (cursor + 1) % senders.len();
+            if senders[cursor].send(signed_transaction).is_err() {
+                break;
             }
-
             if duration.map(|d| start_time.elapsed() > d).unwrap_or(false) {
                 break;
             }

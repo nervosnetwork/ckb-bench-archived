@@ -2,6 +2,7 @@ use crate::account::Account;
 use crate::config::Config;
 use crate::prompt_and_exit;
 use crate::rpc::Jsonrpc;
+use crate::rpcs::Jsonrpcs;
 use ckb_types::packed::{self, Block, Script};
 use failure::_core::time::Duration;
 use log::{error, info};
@@ -11,32 +12,36 @@ use std::thread::{sleep, spawn};
 #[derive(Clone)]
 pub struct Miner {
     config: Config,
-    rpc: Jsonrpc,
+    rpcs: Jsonrpcs,
     account: Account,
 }
 
 impl Miner {
     pub fn new(config: Config, private_key: &str) -> Self {
-        let url = &config.rpc_urls()[0];
-        let rpc = match Jsonrpc::connect(url.as_str()) {
+        let rpcs = match Jsonrpcs::connect_all(config.rpc_urls()) {
             Ok(rpc) => rpc,
-            Err(err) => prompt_and_exit!("Jsonrpc::connect({}) error: {}", url.as_str(), err),
+            Err(err) => prompt_and_exit!(
+                "Jsonrpcs::connect_all({:?}) error: {}",
+                config.rpc_urls(),
+                err
+            ),
         };
         let account = Account::new(private_key);
         Self {
             config,
-            rpc,
+            rpcs,
             account,
         }
     }
 
+    // TODO multiple miners
     pub fn generate_block(&self) {
-        let template = self.rpc.get_block_template(None, None, None);
+        let template = self.rpcs.get_block_template(None, None, None);
         let work_id = template.work_id.value();
         let block_number = template.number.value();
         let block: Block = template.into();
 
-        if let Some(block_hash) = self.rpc.submit_block(work_id.to_string(), block.into()) {
+        if let Some(block_hash) = self.rpcs.submit_block(work_id.to_string(), block.into()) {
             info!("submit block  #{} {:#x}", block_number, block_hash);
         } else {
             error!("submit block  #{} None", block_number);
@@ -50,18 +55,18 @@ impl Miner {
 
     /// Run a miner to generate new blocks until the tx-pool be empty.
     pub fn wait_txpool_empty(&self, start_miner: bool) {
-        let rpc = self.rpc.clone();
-
         info!("START miner.wait_txpool_empty");
-        loop {
-            let tx_pool_info = rpc.tx_pool_info();
-            if tx_pool_info.pending.value() == 0 && tx_pool_info.proposed.value() == 0 {
-                break;
+        for rpc in self.rpcs.endpoints() {
+            loop {
+                let tx_pool_info = rpc.tx_pool_info();
+                if tx_pool_info.pending.value() == 0 && tx_pool_info.proposed.value() == 0 {
+                    break;
+                }
+                if start_miner {
+                    self.generate_block();
+                }
+                sleep(Duration::from_secs(1));
             }
-            if start_miner {
-                self.generate_block();
-            }
-            sleep(Duration::from_secs(1));
         }
         info!("DONE miner.wait_txpool_empty");
     }
@@ -70,7 +75,7 @@ impl Miner {
     pub fn async_mine(&self) {
         // Ensure the miner is matcher with block_assembler configured in ckb
         let configured_miner_lock_script = self.account.lock_script();
-        let block_assembler_lock_script = get_block_assembler_lock_script(&self.rpc);
+        let block_assembler_lock_script = get_block_assembler_lock_script(&self.rpcs);
         assert_eq!(configured_miner_lock_script, block_assembler_lock_script);
 
         info!("miner.async_run");

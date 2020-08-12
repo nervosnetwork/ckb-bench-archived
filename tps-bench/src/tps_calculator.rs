@@ -1,5 +1,5 @@
 use crate::config::Config;
-use crate::rpc::Jsonrpc;
+use crate::rpcs::Jsonrpcs;
 use ckb_types::core::BlockView;
 use log::info;
 use metrics::gauge;
@@ -13,7 +13,7 @@ use std::time::Duration;
 const RECENT_BLOCKS: usize = 10;
 
 pub struct TPSCalculator {
-    rpc: Jsonrpc,
+    rpcs: Jsonrpcs,
     recent_blocks: VecDeque<BlockView>,
     recent_total_txns: u64,
     metrics_file: File,
@@ -30,10 +30,13 @@ impl TPSCalculator {
     }
 
     pub fn new(config: &Config) -> Self {
-        let url = &config.rpc_urls()[0];
-        let rpc = match Jsonrpc::connect(url.as_str()) {
-            Ok(rpc) => rpc,
-            Err(err) => prompt_and_exit!("Jsonrpc::connect({}) error: {}", url.as_str(), err),
+        let rpcs = match Jsonrpcs::connect_all(config.rpc_urls()) {
+            Ok(rpcs) => rpcs,
+            Err(err) => prompt_and_exit!(
+                "Jsonrpcs::connect_all({:?}) error: {}",
+                config.rpc_urls(),
+                err
+            ),
         };
         let metrics_file = OpenOptions::new()
             .create(true)
@@ -41,7 +44,7 @@ impl TPSCalculator {
             .open(config.metrics_path())
             .unwrap();
         TPSCalculator {
-            rpc,
+            rpcs,
             recent_blocks: Default::default(),
             recent_total_txns: 0,
             metrics_file,
@@ -49,7 +52,7 @@ impl TPSCalculator {
     }
 
     pub fn update(&mut self) -> bool {
-        let tip_number = self.rpc.get_tip_block_number();
+        let tip_number = self.rpcs.get_fixed_tip_number();
         let recent_number = self
             .recent_blocks
             .back()
@@ -64,7 +67,7 @@ impl TPSCalculator {
                 recent_number + 1,
             );
             for number in start_number..=tip_number {
-                if let Some(block) = self.rpc.get_block_by_number(number) {
+                if let Some(block) = self.rpcs.get_block_by_number(number) {
                     self.recent_total_txns += block.transactions.len() as u64;
                     self.recent_blocks.push_back(block.into());
                 }

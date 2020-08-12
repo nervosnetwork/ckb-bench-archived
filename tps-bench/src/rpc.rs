@@ -46,7 +46,7 @@ impl Jsonrpc {
                     inner: Arc::new(Mutex::new(Inner::new(transport))),
                 })
             }
-            Err(err) => Err(err.to_string()),
+            Err(err) => Err(format!("connect {} error: {}", uri, err)),
         }
     }
 

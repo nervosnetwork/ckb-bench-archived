@@ -18,16 +18,16 @@ pub struct GenesisInfo {
 
 /// Initialize the global `GENESIS_INFO` with the genesis block
 pub fn init_global_genesis_info(config: &Config) {
-    let url = &config.rpc_urls()[0];
-    let rpc = match Jsonrpc::connect(url.as_str()) {
+    let url = config.rpc_urls()[0];
+    let rpc = match Jsonrpc::connect(url) {
         Ok(rpc) => rpc,
-        Err(err) => prompt_and_exit!("Jsonrpc::connect({}) error: {}", url.as_str(), err),
+        Err(err) => prompt_and_exit!("Jsonrpc::connect({}) error: {}", url, err),
     };
     let genesis_block: core::BlockView = match rpc.get_block_by_number(0) {
         Some(genesis_block) => genesis_block.into(),
         None => prompt_and_exit!(
             "Jsonrpc::get_block_by_number(0) from {} error: return None",
-            url.as_str()
+            url
         ),
     };
     let genesis_info = GenesisInfo::from(genesis_block);
