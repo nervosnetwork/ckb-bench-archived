@@ -31,7 +31,7 @@ impl TPSCalculator {
     }
 
     pub fn new(config: &Config) -> Self {
-        let url = config.node_urls.first().expect("checked");
+        let url = &config.rpc_urls()[0];
         let rpc = match Jsonrpc::connect(url.as_str()) {
             Ok(rpc) => rpc,
             Err(err) => prompt_and_exit!("Jsonrpc::connect({}) error: {}", url.as_str(), err),

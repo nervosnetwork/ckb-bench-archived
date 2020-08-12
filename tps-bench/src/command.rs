@@ -1,5 +1,4 @@
-use crate::config::Config;
-use std::time::Duration;
+use crate::config::{Config, Spec, Url};
 
 pub const MINE_SUBCOMMAND: &str = "mine";
 pub const BENCH_SUBCOMMAND: &str = "bench";
@@ -7,22 +6,22 @@ pub const BENCH_SUBCOMMAND: &str = "bench";
 #[derive(Debug, Clone)]
 pub enum CommandLine {
     MineMode(Config, u64 /* blocks */),
-    BenchMode(Config, Option<Duration> /* duration */),
+    BenchMode(Config),
 }
 
 pub fn commandline() -> CommandLine {
     include_str!("../Cargo.toml");
     let matches = clap::app_from_crate!()
-        .arg(clap::Arg::from_usage(
-            "-c, --config <FILE> 'set config file'",
-        ))
         .subcommand(
             clap::SubCommand::with_name(MINE_SUBCOMMAND)
                 .about("start miner and exit after generating corresponding blocks")
-                .arg(
-                    clap::Arg::from_usage(
-                        "-b --blocks <NUMBER> 'the number of blocks to generate'",
-                    )
+                .arg(clap::Arg::from_usage( "-s, --spec <FILE> 'the spec: staging, dev, or path to spec file'", ))
+                .arg(clap::Arg::from_usage("--rpc-urls <ENDPOINTS> 'the ckb rpc endpoints'")
+                    .required(true)
+                    .multiple(true)
+                    .validator(|s| { Url::parse(&s).map(|_|()).map_err(|err|err.to_string()) })
+                )
+                .arg( clap::Arg::from_usage( "-b --blocks <NUMBER> 'the number of blocks to generate'", )
                     .required(true)
                     .validator(|s| s.parse::<u64>().map(|_| ()).map_err(|err| err.to_string())),
                 ),
@@ -30,6 +29,12 @@ pub fn commandline() -> CommandLine {
         .subcommand(
             clap::SubCommand::with_name(BENCH_SUBCOMMAND)
                 .about("start bencher and continuously send transactions for the duration")
+                .arg(clap::Arg::from_usage( "-s, --spec <FILE> 'the spec: staging, dev, or path to spec file'", ))
+                .arg(clap::Arg::from_usage("--rpc-urls <ENDPOINTS> 'the ckb rpc endpoints'")
+                    .required(true)
+                    .multiple(true)
+                    .validator(|s| { Url::parse(&s).map(|_|()).map_err(|err|err.to_string()) })
+                )
                 .arg(
                     clap::Arg::from_usage("--seconds <NUMBER> 'the seconds to bench, default and 0 represent forever'")
                         .required(false)
@@ -38,34 +43,54 @@ pub fn commandline() -> CommandLine {
         )
         .get_matches();
 
-    let config = {
-        let filepath = matches.value_of("config").unwrap_or("config.toml");
-        match Config::load(filepath) {
-            Ok(config) => config,
-            Err(err) => prompt_and_exit!("Config::load error: {}", err),
-        }
-    };
     match matches.subcommand() {
         (MINE_SUBCOMMAND, Some(options)) => {
-            let str = options
+            let spec = {
+                let filepath = options
+                    .value_of("spec")
+                    .expect("clap arg option `required(true)` checked");
+                match Spec::load(filepath) {
+                    Ok(spec) => spec,
+                    Err(err) => prompt_and_exit!("Spec::load({}) error: {:?}", filepath, err),
+                }
+            };
+            let rpc_urls = options
+                .values_of("rpc-urls")
+                .expect("clap arg option `required(true)` checked")
+                .into_iter()
+                .map(|str| Url::parse(str).expect("clap arg option `validator` checked"))
+                .collect::<Vec<_>>();
+            let config = Config::new(spec, rpc_urls, None);
+            let blocks = options
                 .value_of("blocks")
-                .expect("clap arg option `required(true)` checked");
-            let blocks = str
+                .expect("clap arg option `required(true)` checked")
                 .parse::<u64>()
                 .expect("clap arg option `validator` checked");
             CommandLine::MineMode(config, blocks)
         }
         (BENCH_SUBCOMMAND, Some(options)) => {
+            let spec = {
+                let filepath = options
+                    .value_of("spec")
+                    .expect("clap arg option `required(true)` checked");
+                match Spec::load(filepath) {
+                    Ok(spec) => spec,
+                    Err(err) => prompt_and_exit!("Spec::load({}) error: {:?}", filepath, err),
+                }
+            };
+            let rpc_urls = options
+                .values_of("rpc-urls")
+                .expect("clap arg option `required(true)` checked")
+                .into_iter()
+                .map(|str| Url::parse(str).expect("clap arg option `validator` checked"))
+                .collect::<Vec<_>>();
             let str = options.value_of("seconds").unwrap_or("0");
             let seconds = str
                 .parse::<u64>()
                 .expect("clap arg option `validator` checked");
-            if seconds == 0 {
-                CommandLine::BenchMode(config, None)
-            } else {
-                let duration = Duration::from_secs(seconds);
-                CommandLine::BenchMode(config, Some(duration))
-            }
+            let seconds = if seconds == 0 { None } else { Some(seconds) };
+            let config = Config::new(spec, rpc_urls, seconds);
+            CommandLine::BenchMode(config)
         }
         (subcommand, options) => {
             prompt_and_exit!(

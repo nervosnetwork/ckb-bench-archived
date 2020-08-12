@@ -4,11 +4,93 @@ use std::fs::create_dir_all;
 use std::ops::Deref;
 use std::path::PathBuf;
 
+pub const STAGING_SPEC: &str = include_str!("../specs/staging.toml");
+pub const DEV_SPEC: &str = include_str!("../specs/dev.toml");
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct Config {
+    spec: Spec,
+    rpc_urls: Vec<Url>,
+    seconds: Option<u64>, // The last time of bench process
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct Spec {
+    pub data_dir: String,
+    pub bencher_private_key: String,
+    pub miner_private_key: String,
+    pub block_time: u64, // in milliseconds
+    pub transaction_type: TransactionType,
+    pub start_miner: bool,
+    #[serde(default)]
+    pub metrics_url: Option<String>,
+    pub consensus_cellbase_maturity: u64,
+}
+
 #[derive(Deserialize, Serialize, Debug, Clone, Copy)]
 pub enum TransactionType {
     In1Out1,
     In2Out2,
     In3Out3,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct Url(#[serde(with = "url_serde")] pub url::Url);
+
+impl Deref for Config {
+    type Target = Spec;
+    fn deref(&self) -> &Self::Target {
+        &self.spec
+    }
+}
+
+impl Config {
+    pub fn new(spec: Spec, rpc_urls: Vec<Url>, seconds: Option<u64>) -> Self {
+        Self {
+            spec,
+            rpc_urls,
+            seconds,
+        }
+    }
+
+    pub fn rpc_urls(&self) -> &Vec<Url> {
+        &self.rpc_urls
+    }
+
+    pub fn spec(&self) -> &Spec {
+        &self.spec
+    }
+
+    pub fn seconds(&self) -> Option<u64> {
+        self.seconds
+    }
+}
+
+impl Spec {
+    pub fn load(filepath: &str) -> Result<Self, String> {
+        let spec = match filepath {
+            "staging" => toml::from_str(STAGING_SPEC).map_err(|err| err.to_string())?,
+            "dev" => toml::from_str(DEV_SPEC).map_err(|err| err.to_string())?,
+            _ => {
+                let content = std::fs::read_to_string(filepath).map_err(|err| err.to_string())?;
+                let spec: Self = toml::from_str(&content).map_err(|err| err.to_string())?;
+                spec
+            }
+        };
+
+        create_dir_all(&spec.data_dir).unwrap();
+        *CELLBASE_MATURITY.lock().unwrap() = spec.consensus_cellbase_maturity;
+
+        Ok(spec)
+    }
+
+    pub fn log_path(&self) -> PathBuf {
+        PathBuf::from(&self.data_dir).join("bench.log")
+    }
+
+    pub fn metrics_path(&self) -> PathBuf {
+        PathBuf::from(&self.data_dir).join("metrics.json")
+    }
 }
 
 impl TransactionType {
@@ -21,15 +103,6 @@ impl TransactionType {
     }
 }
 
-impl Default for TransactionType {
-    fn default() -> Self {
-        TransactionType::In2Out2
-    }
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct Url(#[serde(with = "url_serde")] pub url::Url);
-
 impl Deref for Url {
     type Target = url::Url;
     fn deref(&self) -> &Self::Target {
@@ -37,44 +110,9 @@ impl Deref for Url {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct Config {
-    #[serde(default = "default_data_dir")]
-    pub data_dir: String,
-    pub bencher_private_key: String,
-    pub miner_private_key: String,
-    pub node_urls: Vec<Url>,
-    #[serde(default)]
-    pub block_time: u64, // in milliseconds
-    #[serde(default)]
-    pub transaction_type: TransactionType,
-    #[serde(default)]
-    pub start_miner: bool,
-    pub metrics_url: Option<String>,
-    pub consensus_cellbase_maturity: u64,
-}
-
-fn default_data_dir() -> String {
-    String::from("data")
-}
-
-impl Config {
-    pub fn load(filepath: &str) -> Result<Self, String> {
-        let content = std::fs::read_to_string(filepath).map_err(|err| err.to_string())?;
-        let config: Self = toml::from_str(&content).map_err(|err| err.to_string())?;
-
-        create_dir_all(&config.data_dir).unwrap();
-
-        *CELLBASE_MATURITY.lock().unwrap() = config.consensus_cellbase_maturity;
-
-        Ok(config)
-    }
-
-    pub fn log_path(&self) -> PathBuf {
-        PathBuf::from(&self.data_dir).join("bench.log")
-    }
-
-    pub fn metrics_path(&self) -> PathBuf {
-        PathBuf::from(&self.data_dir).join("metrics.json")
+impl Url {
+    pub fn parse(input: &str) -> Result<Url, url::ParseError> {
+        let url = url::Url::parse(input)?;
+        Ok(Url(url))
     }
 }

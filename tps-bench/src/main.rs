@@ -66,14 +66,14 @@ fn main() {
             let miner = Miner::new(config.clone(), &config.miner_private_key);
             miner.generate_blocks(blocks)
         }
-        CommandLine::BenchMode(config, duration) => {
+        CommandLine::BenchMode(config) => {
             init_logger(&config);
             init_metrics(&config);
             init_global_genesis_info(&config);
 
             let miner = Miner::new(config.clone(), &config.miner_private_key);
             let bencher = Account::new(&config.bencher_private_key);
-            let rpcs = connect_jsonrpcs(&config.node_urls);
+            let rpcs = connect_jsonrpcs(config.rpc_urls());
 
             if config.start_miner {
                 miner.async_mine();
@@ -87,7 +87,7 @@ fn main() {
                     bencher.clone(),
                     rpcs[0].clone(),
                     config.transaction_type,
-                    duration,
+                    config.seconds().map(|secs| Duration::from_secs(secs)),
                 );
             }
             run_account_threads(
@@ -95,7 +95,7 @@ fn main() {
                 bencher.clone(),
                 rpcs[0].clone(),
                 config.transaction_type,
-                duration,
+                config.seconds().map(|secs| Duration::from_secs(secs)),
             )
             .join()
             .unwrap();

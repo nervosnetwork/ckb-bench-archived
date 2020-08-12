@@ -18,7 +18,7 @@ pub struct GenesisInfo {
 
 /// Initialize the global `GENESIS_INFO` with the genesis block
 pub fn init_global_genesis_info(config: &Config) {
-    let url = &config.node_urls[0];
+    let url = &config.rpc_urls()[0];
     let rpc = match Jsonrpc::connect(url.as_str()) {
         Ok(rpc) => rpc,
         Err(err) => prompt_and_exit!("Jsonrpc::connect({}) error: {}", url.as_str(), err),

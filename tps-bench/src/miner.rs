@@ -17,18 +17,12 @@ pub struct Miner {
 
 impl Miner {
     pub fn new(config: Config, private_key: &str) -> Self {
-        let url = &config.node_urls[0];
+        let url = &config.rpc_urls()[0];
         let rpc = match Jsonrpc::connect(url.as_str()) {
             Ok(rpc) => rpc,
             Err(err) => prompt_and_exit!("Jsonrpc::connect({}) error: {}", url.as_str(), err),
         };
         let account = Account::new(private_key);
-
-        // Ensure the miner is matcher with block_assembler configured in ckb
-        let configured_miner_lock_script = account.lock_script();
-        let block_assembler_lock_script = get_block_assembler_lock_script(&rpc);
-        assert_eq!(configured_miner_lock_script, block_assembler_lock_script);
-
         Self {
             config,
             rpc,
@@ -74,9 +68,13 @@ impl Miner {
 
     /// Run a miner background to generate blocks forever, in the configured frequency.
     pub fn async_mine(&self) {
-        let block_time = Duration::from_millis(self.config.block_time);
+        // Ensure the miner is matcher with block_assembler configured in ckb
+        let configured_miner_lock_script = self.account.lock_script();
+        let block_assembler_lock_script = get_block_assembler_lock_script(&self.rpc);
+        assert_eq!(configured_miner_lock_script, block_assembler_lock_script);
 
         info!("miner.async_run");
+        let block_time = Duration::from_millis(self.config.block_time);
         let miner = self.clone();
         spawn(move || loop {
             sleep(block_time);
