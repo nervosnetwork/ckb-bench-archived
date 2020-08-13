@@ -11,13 +11,13 @@ use std::thread::{sleep, spawn};
 
 #[derive(Clone)]
 pub struct Miner {
-    config: Config,
     rpcs: Jsonrpcs,
     account: Account,
+    block_time: u64,
 }
 
 impl Miner {
-    pub fn new(config: Config, private_key: &str) -> Self {
+    pub fn new(config: &Config, private_key: &str) -> Self {
         let rpcs = match Jsonrpcs::connect_all(config.rpc_urls()) {
             Ok(rpc) => rpc,
             Err(err) => prompt_and_exit!(
@@ -28,9 +28,9 @@ impl Miner {
         };
         let account = Account::new(private_key);
         Self {
-            config,
             rpcs,
             account,
+            block_time: config.block_time,
         }
     }
 
@@ -79,7 +79,7 @@ impl Miner {
         assert_eq!(configured_miner_lock_script, block_assembler_lock_script);
 
         info!("miner.async_run");
-        let block_time = Duration::from_millis(self.config.block_time);
+        let block_time = Duration::from_millis(self.block_time);
         let miner = self.clone();
         spawn(move || loop {
             sleep(block_time);

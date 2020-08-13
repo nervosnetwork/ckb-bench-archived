@@ -1,10 +1,11 @@
 use crate::config::TransactionType;
+use crate::global::{CELLBASE_MATURITY, MIN_SECP_CELL_CAPACITY, SIGHASH_ALL_TYPE_HASH};
 use crate::rpc::Jsonrpc;
 use crate::rpcs::Jsonrpcs;
 use crate::transfer::{construct_unsigned_transaction, sign_transaction};
 use crate::util::estimate_fee;
 use crate::utxo::UTXO;
-use crate::{CELLBASE_MATURITY, MIN_SECP_CELL_CAPACITY, SIGHASH_ALL_TYPE_HASH};
+
 use ckb_crypto::secp::Privkey;
 use ckb_hash::blake2b_256;
 use ckb_types::core;

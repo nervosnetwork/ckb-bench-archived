@@ -1,7 +1,8 @@
 use crate::account::Account;
+use crate::global::SIGHASH_ALL_CELL_DEP;
 use crate::util::estimate_fee;
 use crate::utxo::UTXO;
-use crate::SIGHASH_ALL_CELL_DEP;
+
 use ckb_types::core;
 use ckb_types::packed::{CellInput, CellOutput, WitnessArgs};
 use ckb_types::prelude::*;

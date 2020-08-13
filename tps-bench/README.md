@@ -12,6 +12,7 @@ The default data directory (configured via `data_dir`), two files inside this di
 ## TODO
 
   * Configured benchmark => TPS
+  * Configuration `start_miner` and `block_time` are reduandent
   * Support multiple endpoints
   * Support "protocols://username:password@url"
   * Figure out the relation between the average block time and TPS

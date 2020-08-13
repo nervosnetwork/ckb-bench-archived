@@ -1,4 +1,5 @@
-use crate::CELLBASE_MATURITY;
+use crate::global::CELLBASE_MATURITY;
+
 use serde_derive::{Deserialize, Serialize};
 use std::fs::create_dir_all;
 use std::ops::Deref;

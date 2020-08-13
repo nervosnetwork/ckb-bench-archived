@@ -4,17 +4,14 @@ extern crate clap;
 use crate::account::Account;
 use crate::command::{commandline, CommandLine};
 use crate::config::{Config, TransactionType};
-use crate::genesis_info::{global_genesis_info, init_global_genesis_info};
+use crate::global::GENESIS_INFO;
 use crate::miner::Miner;
 use crate::rpc::Jsonrpc;
 use crate::rpcs::Jsonrpcs;
 use crate::tps_calculator::TPSCalculator;
-use ckb_types::core::DepType;
-use ckb_types::packed::{Byte32, CellDep, OutPoint};
-use ckb_types::prelude::*;
-use ckb_types::{h256, H256};
+
+use ckb_types::core::BlockView;
 use crossbeam_channel::bounded;
-use lazy_static::lazy_static;
 use log::{info, LevelFilter};
 use metrics_exporter_http::HttpExporter;
 use metrics_observer_prometheus::PrometheusBuilder;
@@ -22,10 +19,10 @@ use metrics_runtime::Receiver;
 use simplelog::WriteLogger;
 use std::fs::{File, OpenOptions};
 use std::net::SocketAddr;
-use std::sync::Mutex;
 use std::thread::{spawn, JoinHandle};
 use std::time::Duration;
 
+pub mod global;
 pub mod miner;
 pub mod rpcs;
 pub mod transfer;
@@ -38,34 +35,13 @@ pub mod rpc;
 pub mod tps_calculator;
 pub mod utxo;
 
-pub const MIN_SECP_CELL_CAPACITY: u64 = 61_0000_0000;
-pub const SIGHASH_ALL_DEP_GROUP_CELL_INDEX: usize = 0;
-pub const SIGHASH_ALL_TYPE_HASH: H256 =
-    h256!("0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8");
-
-lazy_static! {
-    static ref SIGHASH_ALL_DEP_GROUP_TX_HASH: Byte32 = global_genesis_info().dep_group_tx_hash();
-    static ref SIGHASH_ALL_CELL_DEP_OUT_POINT: OutPoint = OutPoint::new_builder()
-        .tx_hash(SIGHASH_ALL_DEP_GROUP_TX_HASH.clone())
-        .index(SIGHASH_ALL_DEP_GROUP_CELL_INDEX.pack())
-        .build();
-    static ref SIGHASH_ALL_CELL_DEP: CellDep = CellDep::new_builder()
-        .out_point(SIGHASH_ALL_CELL_DEP_OUT_POINT.clone())
-        .dep_type(DepType::DepGroup.into())
-        .build();
-}
-
-lazy_static! {
-    pub static ref CELLBASE_MATURITY: Mutex<u64> = Mutex::new(0);
-}
-
 fn main() {
     match commandline() {
         CommandLine::MineMode(config, blocks) => {
             init_logger(&config);
             init_global_genesis_info(&config);
 
-            let miner = Miner::new(config.clone(), &config.miner_private_key);
+            let miner = Miner::new(&config, &config.miner_private_key);
             miner.generate_blocks(blocks)
         }
         CommandLine::BenchMode(config) => {
@@ -73,7 +49,7 @@ fn main() {
             init_metrics(&config);
             init_global_genesis_info(&config);
 
-            let miner = Miner::new(config.clone(), &config.miner_private_key);
+            let miner = Miner::new(&config, &config.miner_private_key);
             let bencher = Account::new(&config.bencher_private_key);
             let rpcs = Jsonrpcs::connect_all(config.rpc_urls()).unwrap();
 
@@ -182,4 +158,21 @@ fn init_metrics(config: &Config) {
     });
 
     // println!("Metrics URL: {}", metrics_url);
+}
+
+/// Initialize the global `GENESIS_INFO` with the genesis block
+pub fn init_global_genesis_info(config: &Config) {
+    let url = config.rpc_urls()[0];
+    let rpc = match Jsonrpc::connect(url) {
+        Ok(rpc) => rpc,
+        Err(err) => prompt_and_exit!("Jsonrpc::connect({}) error: {}", url, err),
+    };
+    let genesis_block: BlockView = match rpc.get_block_by_number(0) {
+        Some(genesis_block) => genesis_block.into(),
+        None => prompt_and_exit!(
+            "Jsonrpc::get_block_by_number(0) from {} error: return None",
+            url
+        ),
+    };
+    *GENESIS_INFO.lock().unwrap() = genesis_block.into();
 }
