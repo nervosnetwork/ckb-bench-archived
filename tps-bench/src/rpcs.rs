@@ -1,4 +1,5 @@
 use crate::Jsonrpc;
+
 use ckb_types::core::BlockNumber;
 use ckb_types::packed::Header;
 use std::ops::Deref;
@@ -34,28 +35,19 @@ impl Jsonrpcs {
     }
 
     pub fn get_fixed_tip_header(&self) -> Header {
-        let mut tip_number = self.endpoints[0].get_tip_block_number();
-        loop {
-            if let Some(header) = self.is_fixed(tip_number) {
-                return header;
-            }
-            tip_number -= 1;
-        }
-    }
-
-    pub fn is_fixed(&self, number: BlockNumber) -> Option<Header> {
-        let mut header0 = None;
-        for jsonrpc in self.endpoints.iter() {
-            if let Some(header) = jsonrpc.get_header_by_number(number) {
-                if header0.is_none() {
-                    header0 = Some(header);
-                } else if header0.as_ref().map(|h| h != &header).unwrap() {
-                    return None;
+        let tip_number = self.endpoints[0].get_tip_block_number();
+        for number in (0..=tip_number).rev() {
+            if let Some(header) = self.endpoints[0].get_header_by_number(number) {
+                let is_fixed = self.endpoints[1..self.endpoints.len()].iter().all(|rpc| {
+                    rpc.get_header_by_number(number)
+                        .map(|h| h == header)
+                        .unwrap_or(false)
+                });
+                if is_fixed {
+                    return header.inner.into();
                 }
-            } else {
-                return None;
-            }
+            };
         }
-        header0.map(|h| h.inner.into())
+        unreachable!()
     }
 }

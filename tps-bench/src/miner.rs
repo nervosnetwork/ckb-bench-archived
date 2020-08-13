@@ -54,16 +54,13 @@ impl Miner {
     }
 
     /// Run a miner to generate new blocks until the tx-pool be empty.
-    pub fn wait_txpool_empty(&self, start_miner: bool) {
+    pub fn wait_txpool_empty(&self) {
         info!("START miner.wait_txpool_empty");
         for rpc in self.rpcs.endpoints() {
             loop {
                 let tx_pool_info = rpc.tx_pool_info();
                 if tx_pool_info.pending.value() == 0 && tx_pool_info.proposed.value() == 0 {
                     break;
-                }
-                if start_miner {
-                    self.generate_block();
                 }
                 sleep(Duration::from_secs(1));
             }
@@ -72,7 +69,7 @@ impl Miner {
     }
 
     /// Run a miner background to generate blocks forever, in the configured frequency.
-    pub fn async_mine(&self) {
+    pub fn async_run(&self) {
         // Ensure the miner is matcher with block_assembler configured in ckb
         let configured_miner_lock_script = self.account.lock_script();
         let block_assembler_lock_script = get_block_assembler_lock_script(&self.rpcs);

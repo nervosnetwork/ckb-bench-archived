@@ -3,7 +3,7 @@ extern crate clap;
 
 use crate::account::Account;
 use crate::command::{commandline, CommandLine};
-use crate::config::{Config, TransactionType};
+use crate::config::Config;
 use crate::global::GENESIS_INFO;
 use crate::miner::Miner;
 use crate::rpc::Jsonrpc;
@@ -12,12 +12,12 @@ use crate::tps_calculator::TPSCalculator;
 
 use ckb_types::core::BlockView;
 use crossbeam_channel::bounded;
-use log::{info, LevelFilter};
+use log::LevelFilter;
 use metrics_exporter_http::HttpExporter;
 use metrics_observer_prometheus::PrometheusBuilder;
 use metrics_runtime::Receiver;
 use simplelog::WriteLogger;
-use std::fs::{File, OpenOptions};
+use std::fs::OpenOptions;
 use std::net::SocketAddr;
 use std::thread::{spawn, JoinHandle};
 use std::time::Duration;
@@ -42,90 +42,74 @@ fn main() {
             init_global_genesis_info(&config);
 
             let miner = Miner::new(&config, &config.miner_private_key);
-            miner.generate_blocks(blocks)
+            miner.generate_blocks(blocks);
         }
         CommandLine::BenchMode(config) => {
             init_logger(&config);
             init_metrics(&config);
             init_global_genesis_info(&config);
 
+            // Miner
             let miner = Miner::new(&config, &config.miner_private_key);
-            let bencher = Account::new(&config.bencher_private_key);
-            let rpcs = Jsonrpcs::connect_all(config.rpc_urls()).unwrap();
-
             if config.start_miner {
-                miner.async_mine();
+                miner.async_run();
             }
-            miner.wait_txpool_empty(config.start_miner);
+            miner.wait_txpool_empty();
+
+            // TPSCalculator
             TPSCalculator::new(&config).async_run();
 
+            // Benchmark
+            let bencher = Account::new(&config.bencher_private_key);
             if miner.lock_script() != bencher.lock_script() {
-                let _ = run_account_threads(
-                    miner.account().clone(),
-                    bencher.clone(),
-                    rpcs.clone(),
-                    config.transaction_type,
-                    config.seconds().map(|secs| Duration::from_secs(secs)),
-                );
+                run_account_threads(miner.account(), &bencher, &config);
+                run_account_threads(&bencher, &bencher, &config)
+            } else {
+                run_account_threads(&bencher, &bencher, &config)
             }
-            run_account_threads(
-                bencher.clone(),
-                bencher.clone(),
-                rpcs.clone(),
-                config.transaction_type,
-                config.seconds().map(|secs| Duration::from_secs(secs)),
-            )
             .join()
             .unwrap();
         }
     }
 }
 
-fn run_account_threads(
-    sender: Account,
-    recipient: Account,
-    rpcs: Jsonrpcs,
-    transaction_type: TransactionType,
-    duration: Option<Duration>,
-) -> JoinHandle<()> {
-    let (utxo_sender, utxo_receiver) = bounded(2000);
+fn run_account_threads(sender: &Account, recipient: &Account, config: &Config) -> JoinHandle<()> {
+    let rpcs = Jsonrpcs::connect_all(config.rpc_urls()).unwrap();
     let cursor_number = rpcs.get_fixed_tip_number();
-    info!("START account.pull_until");
     let (matureds, unmatureds) = sender.pull_until(&rpcs, cursor_number);
-    info!("DONE account.pull_until");
-    let sender_clone = sender.clone();
-    let rpcs_clone = rpcs.clone();
+
+    let (utxo_sender, utxo_receiver) = bounded(2000);
+    let sender_ = sender.clone();
+    let rpcs_ = rpcs.clone();
     spawn(move || {
         matureds.into_iter().for_each(|utxo| {
             utxo_sender.send(utxo).unwrap();
         });
-        sender_clone.pull_forever(rpcs_clone, cursor_number, unmatureds, utxo_sender);
+        sender_.pull_forever(rpcs_, cursor_number, unmatureds, utxo_sender);
     });
+
+    let sender_ = sender.clone();
+    let recipient_ = recipient.clone();
+    let transaction_type = config.transaction_type;
+    let duration = config.seconds().map(Duration::from_secs);
     spawn(move || {
-        sender.transfer_forever(recipient, rpcs, utxo_receiver, transaction_type, duration)
+        sender_.transfer_forever(recipient_, rpcs, utxo_receiver, transaction_type, duration)
     })
 }
 
 fn init_logger(config: &Config) {
-    WriteLogger::init(
-        LevelFilter::Info,
-        Default::default(),
-        OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(config.log_path())
-            .unwrap(),
-    )
-    .unwrap();
+    let mut options = OpenOptions::new();
+    let options = options.create(true).append(true);
+    let logs = options.open(config.log_path()).unwrap();
+    let _metrics = options.open(config.metrics_path()).unwrap();
+
+    WriteLogger::init(LevelFilter::Info, Default::default(), logs).unwrap();
     println!(
-        "Log Path: {}",
+        "LogPath: {}",
         config.log_path().canonicalize().unwrap().to_string_lossy()
     );
-
-    // dirty...
-    File::create(config.metrics_path()).unwrap();
     println!(
-        "Metrics Path: {}",
+        "MetricsPath: {}",
         config
             .metrics_path()
             .canonicalize()

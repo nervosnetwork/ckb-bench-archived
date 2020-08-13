@@ -1,16 +1,28 @@
 use crate::config::Config;
 use crate::rpcs::Jsonrpcs;
+
 use ckb_types::core::BlockView;
 use log::info;
 use metrics::gauge;
+use serde_derive::{Deserialize, Serialize};
+use serde_json::json;
 use std::cmp::max;
 use std::collections::VecDeque;
-use std::fs::{File, OpenOptions};
+use std::fs::File;
 use std::io::Write;
 use std::thread::{sleep, spawn, JoinHandle};
 use std::time::Duration;
 
 const RECENT_BLOCKS: usize = 10;
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct Metrics {
+    tps: u64,
+    average_block_time_ms: u64,
+    average_block_transactions: u64,
+    start_block_number: u64,
+    end_block_number: u64,
+}
 
 pub struct TPSCalculator {
     rpcs: Jsonrpcs,
@@ -38,16 +50,12 @@ impl TPSCalculator {
                 err
             ),
         };
-        let metrics_file = OpenOptions::new()
-            .create(true)
-            .write(true)
-            .open(config.metrics_path())
-            .unwrap();
+        let metrics_file = File::create(config.metrics_path()).unwrap();
         TPSCalculator {
             rpcs,
+            metrics_file,
             recent_blocks: Default::default(),
             recent_total_txns: 0,
-            metrics_file,
         }
     }
 
@@ -93,23 +101,22 @@ impl TPSCalculator {
 
         let start_block = self.recent_blocks.front().unwrap();
         let end_block = self.recent_blocks.back().unwrap();
-        let elapsed = end_block
+        let elapsed_ms = end_block
             .timestamp()
-            .saturating_sub(start_block.timestamp())
-            / 1000;
-        let average_block_time = elapsed / self.recent_blocks.len() as u64;
+            .saturating_sub(start_block.timestamp());
+        if elapsed_ms == 0 {
+            return;
+        }
+
+        let average_block_time_ms = elapsed_ms / self.recent_blocks.len() as u64;
         let average_block_transactions = self.recent_total_txns / self.recent_blocks.len() as u64;
-        let tps = if elapsed == 0 {
-            self.recent_total_txns as f64
-        } else {
-            self.recent_total_txns as f64 / elapsed as f64
-        };
-        let json = serde_json::json!({
-            "start_block_number": start_block.number(),
-            "end_block_number": end_block.number(),
-            "tps": format!("{:.2}", tps),
-            "average_block_time_secs": average_block_time,
-            "average_block_transactions": average_block_transactions,
+        let tps = (self.recent_total_txns as f64 * 1000.0 / elapsed_ms as f64) as u64;
+        let json = json!(Metrics {
+            tps,
+            average_block_time_ms,
+            average_block_transactions,
+            start_block_number: start_block.number(),
+            end_block_number: end_block.number(),
         });
 
         self.metrics_file.set_len(0).unwrap();
@@ -119,7 +126,7 @@ impl TPSCalculator {
         info!("metrics: {}", json.to_string());
 
         gauge!("tps", tps as i64);
-        gauge!("average_block_time", average_block_time as i64);
+        gauge!("average_block_time", average_block_time_ms as i64);
         gauge!(
             "average_block_transactions",
             average_block_transactions as i64
