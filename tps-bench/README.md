@@ -11,7 +11,12 @@ The default data directory (configured via `data_dir`), two files inside this di
 
 ## TODO
 
+  * Configured benchmark => TPS
   * Support multiple endpoints
   * Support "protocols://username:password@url"
   * Figure out the relation between the average block time and TPS
   * Figure out the relation between the send transaction rate and TPS
+  * Make the result be stable
+  * Handle lost transaction, transaction may be lost by all nodes
+  * Based benchmark
+  * Adjust send rate
