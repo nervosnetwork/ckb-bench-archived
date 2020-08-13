@@ -1,19 +1,19 @@
+use ckb_types::packed::{Block, Transaction};
+use log::{error, info};
+use std::ops::Deref;
+use std::thread::sleep;
+use std::time::Duration;
+
 use crate::account::Account;
 use crate::config::Config;
 use crate::prompt_and_exit;
-use crate::rpc::Jsonrpc;
 use crate::rpcs::Jsonrpcs;
-use ckb_types::packed::{self, Block, Script};
-use failure::_core::time::Duration;
-use log::{error, info};
-use std::ops::Deref;
-use std::thread::{sleep, spawn};
 
 #[derive(Clone)]
 pub struct Miner {
     rpcs: Jsonrpcs,
     account: Account,
-    block_time: u64,
+    pub block_time: u64,
 }
 
 impl Miner {
@@ -55,7 +55,7 @@ impl Miner {
 
     /// Run a miner to generate new blocks until the tx-pool be empty.
     pub fn wait_txpool_empty(&self) {
-        info!("START miner.wait_txpool_empty");
+        info!("miner wait txpool empty");
         for rpc in self.rpcs.endpoints() {
             loop {
                 let tx_pool_info = rpc.tx_pool_info();
@@ -65,27 +65,22 @@ impl Miner {
                 sleep(Duration::from_secs(1));
             }
         }
-        info!("DONE miner.wait_txpool_empty");
+        info!("miner txpool is empty now");
     }
 
-    /// Run a miner background to generate blocks forever, in the configured frequency.
-    pub fn async_run(&self) {
+    pub fn assert_block_assembler(&self) {
         // Ensure the miner is matcher with block_assembler configured in ckb
-        let configured_miner_lock_script = self.account.lock_script();
-        let block_assembler_lock_script = get_block_assembler_lock_script(&self.rpcs);
+        let configured_miner_lock_script = self.lock_script();
+        let block_assembler_lock_script = {
+            let cellbase: Transaction = self
+                .rpcs
+                .get_block_template(None, None, None)
+                .cellbase
+                .data
+                .into();
+            cellbase.into_view().output(0).unwrap().lock()
+        };
         assert_eq!(configured_miner_lock_script, block_assembler_lock_script);
-
-        info!("miner.async_run");
-        let block_time = Duration::from_millis(self.block_time);
-        let miner = self.clone();
-        spawn(move || loop {
-            sleep(block_time);
-            miner.generate_block();
-        });
-    }
-
-    pub fn account(&self) -> &Account {
-        &self.account
     }
 }
 
@@ -95,13 +90,4 @@ impl Deref for Miner {
     fn deref(&self) -> &Self::Target {
         &&self.account
     }
-}
-
-fn get_block_assembler_lock_script(rpc: &Jsonrpc) -> Script {
-    let cellbase: packed::Transaction = rpc
-        .get_block_template(None, None, None)
-        .cellbase
-        .data
-        .into();
-    cellbase.into_view().output(0).unwrap().lock()
 }
