@@ -1,6 +1,6 @@
 use crate::Jsonrpc;
 
-use ckb_types::core::BlockNumber;
+use ckb_types::core::{BlockNumber, BlockView};
 use ckb_types::packed::Header;
 use std::ops::Deref;
 
@@ -32,6 +32,12 @@ impl Jsonrpcs {
 
     pub fn get_fixed_tip_number(&self) -> BlockNumber {
         self.get_fixed_tip_header().into_view().number()
+    }
+
+    pub fn get_fixed_tip_block(&self) -> BlockView {
+        let header = self.get_fixed_tip_header();
+        let block = self.get_block(header.calc_header_hash()).unwrap();
+        block.into()
     }
 
     pub fn get_fixed_tip_header(&self) -> Header {

@@ -95,7 +95,7 @@ impl Spec {
 }
 
 impl TransactionType {
-    pub fn required(self) -> usize {
+    pub fn outputs_count(self) -> usize {
         match self {
             TransactionType::In1Out1 => 1,
             TransactionType::In2Out2 => 2,

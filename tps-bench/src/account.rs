@@ -160,7 +160,7 @@ impl Account {
         duration: Option<Duration>,
     ) {
         let start_time = Instant::now();
-        let outputs_count = transaction_type.required() as u64;
+        let outputs_count = transaction_type.outputs_count() as u64;
         let min_input_total_capacity =
             outputs_count * MIN_SECP_CELL_CAPACITY + estimate_fee(outputs_count);
         let (mut inputs, mut input_total_capacity) = (Vec::new(), 0);
@@ -187,7 +187,6 @@ impl Account {
         while let Ok(utxo) = utxo_receiver.recv() {
             input_total_capacity += utxo.capacity();
             inputs.push(utxo);
-
             if input_total_capacity < min_input_total_capacity {
                 continue;
             }

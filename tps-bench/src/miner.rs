@@ -1,8 +1,6 @@
 use ckb_types::packed::{Block, Transaction};
 use log::{error, info};
 use std::ops::Deref;
-use std::thread::sleep;
-use std::time::Duration;
 
 use crate::account::Account;
 use crate::config::Config;
@@ -51,21 +49,6 @@ impl Miner {
     /// Run a miner to generate the given number of blocks.
     pub fn generate_blocks(&self, n: u64) {
         (0..n).for_each(|_| self.generate_block());
-    }
-
-    /// Run a miner to generate new blocks until the tx-pool be empty.
-    pub fn wait_txpool_empty(&self) {
-        info!("miner wait txpool empty");
-        for rpc in self.rpcs.endpoints() {
-            loop {
-                let tx_pool_info = rpc.tx_pool_info();
-                if tx_pool_info.pending.value() == 0 && tx_pool_info.proposed.value() == 0 {
-                    break;
-                }
-                sleep(Duration::from_secs(1));
-            }
-        }
-        info!("miner txpool is empty now");
     }
 
     pub fn assert_block_assembler(&self) {

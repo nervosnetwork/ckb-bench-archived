@@ -21,3 +21,5 @@ The default data directory (configured via `data_dir`), two files inside this di
   * Handle lost transaction, transaction may be lost by all nodes
   * Based benchmark
   * Adjust send rate
+  * Async send transactions
+  * Update logs redability

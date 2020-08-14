@@ -17,8 +17,8 @@ use crate::config::Config;
 use crate::global::GENESIS_INFO;
 use crate::miner::Miner;
 use crate::rpc::Jsonrpc;
-use crate::tps_calculator::TPSCalculator;
 
+pub mod benchmark;
 pub mod global;
 pub mod miner;
 pub mod rpcs;
@@ -30,7 +30,6 @@ pub mod command;
 pub mod config;
 pub mod genesis_info;
 pub mod rpc;
-pub mod tps_calculator;
 pub mod utxo;
 
 fn main() {
@@ -52,10 +51,6 @@ fn main() {
             if config.start_miner {
                 let _ = spawn_miner(&miner);
             }
-            miner.wait_txpool_empty();
-
-            // TPSCalculator
-            TPSCalculator::new(&config).async_run();
 
             // Benchmark
             let bencher = Account::new(&config.bencher_private_key);
