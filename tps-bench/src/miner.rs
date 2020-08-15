@@ -1,30 +1,39 @@
 use ckb_types::packed::{Block, Transaction};
 use log::{error, info};
+use serde_derive::{Deserialize, Serialize};
 use std::ops::Deref;
+use std::time::Duration;
 
 use crate::account::Account;
-use crate::config::Config;
 use crate::prompt_and_exit;
 use crate::rpcs::Jsonrpcs;
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct MinerConfig {
+    private_key: String,
+    block_time: u64,
+}
 
 #[derive(Clone)]
 pub struct Miner {
     rpcs: Jsonrpcs,
     account: Account,
+    pub block_time: Duration,
 }
 
 impl Miner {
-    pub fn new(config: &Config, private_key: &str) -> Self {
-        let rpcs = match Jsonrpcs::connect_all(config.rpc_urls()) {
-            Ok(rpc) => rpc,
-            Err(err) => prompt_and_exit!(
-                "Jsonrpcs::connect_all({:?}) error: {}",
-                config.rpc_urls(),
-                err
-            ),
+    pub fn new(miner_config: &MinerConfig, rpc_urls: Vec<&str>) -> Self {
+        let rpcs = match Jsonrpcs::connect_all(rpc_urls) {
+            Ok(rpcs) => rpcs,
+            Err(err) => prompt_and_exit!("Jsonrpcs::connect_all() error: {}", err),
         };
-        let account = Account::new(private_key);
-        Self { rpcs, account }
+        let account = Account::new(&miner_config.private_key);
+        let block_time = Duration::from_millis(miner_config.block_time);
+        Self {
+            rpcs,
+            account,
+            block_time,
+        }
     }
 
     // TODO multiple miners

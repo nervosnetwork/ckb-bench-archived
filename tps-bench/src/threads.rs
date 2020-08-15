@@ -1,12 +1,12 @@
 use crossbeam_channel::{bounded, Receiver};
 use log::info;
 use std::thread::{sleep, spawn, JoinHandle};
-use std::time::Duration;
 
 use crate::account::Account;
 use crate::config::Config;
 use crate::miner::Miner;
 use crate::rpcs::Jsonrpcs;
+use crate::transfer::{construct_unsigned_transaction, sign_transaction};
 use crate::utxo::UTXO;
 
 pub fn spawn_pull_utxos(config: &Config, account: &Account) -> (JoinHandle<()>, Receiver<UTXO>) {
@@ -37,19 +37,21 @@ pub fn spawn_transfer_utxos(
     let rpcs = Jsonrpcs::connect_all(config.rpc_urls()).unwrap();
     let sender = sender.clone();
     let recipient = recipient.clone();
-    let transaction_type = config.transaction_type;
-    let duration = config.seconds().map(Duration::from_secs);
     spawn(move || {
-        sender.transfer_forever(recipient, rpcs, utxo_receiver, transaction_type, duration)
+        while let Ok(utxo) = utxo_receiver.recv() {
+            let raw = construct_unsigned_transaction(&recipient, vec![utxo], 1);
+            let signed = sign_transaction(&sender, raw);
+            rpcs.send_transaction(signed.data().into());
+        }
     })
 }
 
-pub fn spawn_miner(miner: &Miner, block_time: Duration) {
+pub fn spawn_miner(miner: &Miner) {
     info!("threads::spawn_miner");
     miner.assert_block_assembler();
     let miner = miner.clone();
     spawn(move || loop {
-        sleep(block_time);
+        sleep(miner.block_time);
         miner.generate_block();
     });
 }

@@ -1,5 +1,6 @@
 use crate::global::CELLBASE_MATURITY;
 
+use crate::miner::MinerConfig;
 use serde_derive::{Deserialize, Serialize};
 use std::fs::create_dir_all;
 use std::ops::Deref;
@@ -19,9 +20,10 @@ pub struct Config {
 pub struct Spec {
     pub data_dir: String,
     pub bencher_private_key: String,
-    pub miner_private_key: String,
+
+    pub miner: Option<MinerConfig>,
+
     pub transaction_type: TransactionType,
-    pub start_miner: Option<u64>, // in milliseconds
     #[serde(default)]
     pub metrics_url: Option<String>,
     pub consensus_cellbase_maturity: u64,

@@ -9,7 +9,6 @@ use metrics_runtime::Receiver;
 use simplelog::WriteLogger;
 use std::fs::OpenOptions;
 use std::net::SocketAddr;
-use std::time::Duration;
 
 use crate::account::Account;
 use crate::command::{commandline, CommandLine};
@@ -39,7 +38,9 @@ fn main() {
             init_logger(&config);
             init_global_genesis_info(&config);
 
-            let miner = Miner::new(&config, &config.miner_private_key);
+            let miner_config = config.miner.as_ref().expect("config [miner] on mine-mode");
+            let rpc_urls = config.rpc_urls();
+            let miner = Miner::new(miner_config, rpc_urls);
             miner.generate_blocks(blocks);
         }
         CommandLine::BenchMode(config) => {
@@ -47,25 +48,35 @@ fn main() {
             init_metrics(&config);
             init_global_genesis_info(&config);
 
+            // Bencher
+            let bencher = Account::new(&config.bencher_private_key);
+
             // Miner
-            let miner = Miner::new(&config, &config.miner_private_key);
-            if let Some(block_time) = config.start_miner {
-                let block_time = Duration::from_millis(block_time);
-                let _ = spawn_miner(&miner, block_time);
+            if let Some(ref miner_config) = config.miner {
+                let rpc_urls = config.rpc_urls();
+                let miner = Miner::new(miner_config, rpc_urls);
+
+                let _ = spawn_miner(&miner);
+
+                // Transfer all miner's utxo to bencher
+                if miner.lock_script() != bencher.lock_script() {
+                    let (_, miner_utxo_r) = spawn_pull_utxos(&config, &miner);
+                    spawn_transfer_utxos(&config, &miner, &bencher, miner_utxo_r);
+                }
             }
 
             // Benchmark
-            let bencher = Account::new(&config.bencher_private_key);
-            let handler = if miner.lock_script() != bencher.lock_script() {
-                let (_, miner_utxo_r) = spawn_pull_utxos(&config, &miner);
-                let (_, bencher_utxo_r) = spawn_pull_utxos(&config, &bencher);
-                spawn_transfer_utxos(&config, &miner, &bencher, miner_utxo_r);
-                spawn_transfer_utxos(&config, &bencher, &bencher, bencher_utxo_r)
-            } else {
-                let (_, bencher_utxo_r) = spawn_pull_utxos(&config, &bencher);
-                spawn_transfer_utxos(&config, &bencher, &bencher, bencher_utxo_r)
-            };
-            handler.join().unwrap();
+            // let bencher = Account::new(&config.bencher_private_key);
+            // let handler = if miner.lock_script() != bencher.lock_script() {
+            //     let (_, miner_utxo_r) = spawn_pull_utxos(&config, &miner);
+            //     let (_, bencher_utxo_r) = spawn_pull_utxos(&config, &bencher);
+            //     spawn_transfer_utxos(&config, &miner, &bencher, miner_utxo_r);
+            //     spawn_transfer_utxos(&config, &bencher, &bencher, bencher_utxo_r)
+            // } else {
+            //     let (_, bencher_utxo_r) = spawn_pull_utxos(&config, &bencher);
+            //     spawn_transfer_utxos(&config, &bencher, &bencher, bencher_utxo_r)
+            // };
+            // handler.join().unwrap();
         }
     }
 }

@@ -142,7 +142,7 @@ fn wait_chain_stabled(rpcs: &Jsonrpcs) -> Metrics {
 
     let mut queue = VecDeque::with_capacity(window_size);
     queue.push_back(rpcs.get_fixed_tip_block());
-    
+
     loop {
         loop {
             let tip_number = rpcs.get_fixed_tip_number();
