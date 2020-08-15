@@ -11,7 +11,6 @@ use crate::rpcs::Jsonrpcs;
 pub struct Miner {
     rpcs: Jsonrpcs,
     account: Account,
-    pub block_time: u64,
 }
 
 impl Miner {
@@ -25,11 +24,7 @@ impl Miner {
             ),
         };
         let account = Account::new(private_key);
-        Self {
-            rpcs,
-            account,
-            block_time: config.block_time,
-        }
+        Self { rpcs, account }
     }
 
     // TODO multiple miners

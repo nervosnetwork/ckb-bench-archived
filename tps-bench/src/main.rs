@@ -1,7 +1,6 @@
 #[macro_use]
 extern crate clap;
 
-use crate::threads::{spawn_miner, spawn_pull_utxos, spawn_transfer_utxos};
 use ckb_types::core::BlockView;
 use log::LevelFilter;
 use metrics_exporter_http::HttpExporter;
@@ -10,6 +9,7 @@ use metrics_runtime::Receiver;
 use simplelog::WriteLogger;
 use std::fs::OpenOptions;
 use std::net::SocketAddr;
+use std::time::Duration;
 
 use crate::account::Account;
 use crate::command::{commandline, CommandLine};
@@ -17,6 +17,7 @@ use crate::config::Config;
 use crate::global::GENESIS_INFO;
 use crate::miner::Miner;
 use crate::rpc::Jsonrpc;
+use crate::threads::{spawn_miner, spawn_pull_utxos, spawn_transfer_utxos};
 
 pub mod benchmark;
 pub mod global;
@@ -48,8 +49,9 @@ fn main() {
 
             // Miner
             let miner = Miner::new(&config, &config.miner_private_key);
-            if config.start_miner {
-                let _ = spawn_miner(&miner);
+            if let Some(block_time) = config.start_miner {
+                let block_time = Duration::from_millis(block_time);
+                let _ = spawn_miner(&miner, block_time);
             }
 
             // Benchmark

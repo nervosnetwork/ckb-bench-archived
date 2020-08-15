@@ -11,15 +11,10 @@ consensus_cellbase_maturity = 1 # TODO: Add RPC get_consensus_params
 ## Default is empty, which means metrics service would not start.
 metrics_url = ""
 
-# Miner Configuration
-## When `start_miner` is true, it will start a dummy miner to generate
-## blocks based `block_time`; Otherwise no miner be started.
-##
-## As for staging/testnet/mainnet networks, these networks have their owned miners,
-## so `start_miner` should be set to false;
-## as for personal dummy network, `start_miner` setted to true is convenion
-start_miner = true
-block_time = 1000 # ms
+# Dummy Miner
+## - start_miner :: Option<millis>: None will not start dummy miner;
+##   Some<millis> starts a dummy miner with block_time = millis.
+start_miner = 1000
 
 # Benchmark
 ## - transaction_type :: "In1Out1" | "In2Out2" | "In3Out3"
@@ -30,4 +25,3 @@ send_delay = 10
 [[benchmarks]]
 transaction_type = "In2Out2"
 send_delay = = 1
-# 

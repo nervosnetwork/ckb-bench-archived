@@ -20,9 +20,8 @@ pub struct Spec {
     pub data_dir: String,
     pub bencher_private_key: String,
     pub miner_private_key: String,
-    pub block_time: u64, // in milliseconds
     pub transaction_type: TransactionType,
-    pub start_miner: bool,
+    pub start_miner: Option<u64>, // in milliseconds
     #[serde(default)]
     pub metrics_url: Option<String>,
     pub consensus_cellbase_maturity: u64,

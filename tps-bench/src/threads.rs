@@ -44,10 +44,9 @@ pub fn spawn_transfer_utxos(
     })
 }
 
-pub fn spawn_miner(miner: &Miner) {
+pub fn spawn_miner(miner: &Miner, block_time: Duration) {
     info!("threads::spawn_miner");
     miner.assert_block_assembler();
-    let block_time = Duration::from_millis(miner.block_time);
     let miner = miner.clone();
     spawn(move || loop {
         sleep(block_time);
