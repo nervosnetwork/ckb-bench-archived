@@ -137,45 +137,38 @@ fn wait_txpool_not_empty(rpcs: &Jsonrpcs) {
 fn wait_chain_stabled(rpcs: &Jsonrpcs) -> Metrics {
     info!("START wait_chain_stabled");
 
-    // TODO use constant variables
-    let mut queue = FixedSizeQueue::new(20);
-    queue.push(rpcs.get_fixed_tip_block());
+    let window_size = 20;
+    let window_margin = 10;
+
+    let mut queue = VecDeque::with_capacity(window_size);
+    queue.push_back(rpcs.get_fixed_tip_block());
+    
     loop {
         loop {
             let tip_number = rpcs.get_fixed_tip_number();
-            let front_number = queue.front().unwrap().number();
-            if tip_number > front_number {
-                queue.push(rpcs.get_block_by_number(front_number + 1).unwrap().into());
+            let back = queue.front().unwrap();
+            if tip_number > back.number() {
+                let next_block = rpcs.get_block_by_number(back.number() + 1).unwrap().into();
+                while queue.len() >= window_size {
+                    queue.pop_front();
+                }
+                queue.push_back(next_block);
                 break;
+            } else {
+                sleep(Duration::from_secs(1));
             }
         }
 
-        if queue.len() >= 20 {
-            let min_txns = queue.items().iter().fold(9999, |min, block| {
-                if min <= block.transactions().len() {
-                    min
-                } else {
-                    block.transactions().len()
-                }
-            });
-            let max_txns = queue.items().iter().fold(0, |max, block| {
-                if max >= block.transactions().len() {
-                    max
-                } else {
-                    block.transactions().len()
-                }
-            });
-            let total_txns: usize = queue
-                .items()
-                .iter()
-                .map(|block| block.transactions().len())
-                .sum();
+        if queue.len() >= window_size {
+            let mintxns = queue.iter().map(|b| b.transactions().len()).min().unwrap();
+            let maxtxns = queue.iter().map(|b| b.transactions().len()).max().unwrap();
+            let totaltxns: usize = queue.iter().map(|block| block.transactions().len()).sum();
             let front = queue.front().unwrap();
             let back = queue.back().unwrap();
-            let average_block_transactions = (total_txns / queue.len()) as u64;
+            let average_block_transactions = (totaltxns / queue.len()) as u64;
             let elapsed_ms = front.timestamp().saturating_sub(back.timestamp());
-            let average_block_time_ms = elapsed_ms / (total_txns as u64);
-            let tps = (total_txns as f64 * 1000.0 / elapsed_ms as f64) as u64;
+            let average_block_time_ms = elapsed_ms / (totaltxns as u64);
+            let tps = (totaltxns as f64 * 1000.0 / elapsed_ms as f64) as u64;
             let metrics = Metrics {
                 tps,
                 average_block_time_ms,
@@ -186,46 +179,9 @@ fn wait_chain_stabled(rpcs: &Jsonrpcs) -> Metrics {
 
             info!("metrics: {}", json!(metrics).to_string());
 
-            if max_txns > min_txns + 10 {
+            if maxtxns <= mintxns + window_margin {
                 return metrics;
             }
         }
-    }
-}
-
-struct FixedSizeQueue<T> {
-    inner: VecDeque<T>,
-    size: usize,
-}
-
-impl<T> FixedSizeQueue<T> {
-    fn new(size: usize) -> Self {
-        Self {
-            inner: VecDeque::with_capacity(size),
-            size,
-        }
-    }
-
-    fn push(&mut self, item: T) {
-        while self.inner.len() >= self.size {
-            self.inner.pop_front();
-        }
-        self.inner.push_back(item);
-    }
-
-    fn items(&self) -> &VecDeque<T> {
-        &self.inner
-    }
-
-    fn len(&self) -> usize {
-        self.inner.len()
-    }
-
-    fn front(&self) -> Option<&T> {
-        self.inner.front()
-    }
-
-    fn back(&self) -> Option<&T> {
-        self.inner.back()
     }
 }
