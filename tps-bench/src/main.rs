@@ -16,6 +16,7 @@ use crate::config::Config;
 use crate::global::GENESIS_INFO;
 use crate::miner::Miner;
 use crate::rpc::Jsonrpc;
+use crate::rpcs::Jsonrpcs;
 use crate::threads::{spawn_miner, spawn_pull_utxos, spawn_transfer_utxos};
 
 pub mod benchmark;
@@ -50,6 +51,7 @@ fn main() {
 
             // Bencher
             let bencher = Account::new(&config.bencher_private_key);
+            let (_, bencher_utxo_r) = spawn_pull_utxos(&config, &bencher);
 
             // Miner
             if let Some(ref miner_config) = config.miner {
@@ -66,17 +68,10 @@ fn main() {
             }
 
             // Benchmark
-            // let bencher = Account::new(&config.bencher_private_key);
-            // let handler = if miner.lock_script() != bencher.lock_script() {
-            //     let (_, miner_utxo_r) = spawn_pull_utxos(&config, &miner);
-            //     let (_, bencher_utxo_r) = spawn_pull_utxos(&config, &bencher);
-            //     spawn_transfer_utxos(&config, &miner, &bencher, miner_utxo_r);
-            //     spawn_transfer_utxos(&config, &bencher, &bencher, bencher_utxo_r)
-            // } else {
-            //     let (_, bencher_utxo_r) = spawn_pull_utxos(&config, &bencher);
-            //     spawn_transfer_utxos(&config, &bencher, &bencher, bencher_utxo_r)
-            // };
-            // handler.join().unwrap();
+            for benchmark in config.benchmarks.iter() {
+                let rpcs = Jsonrpcs::connect_all(config.rpc_urls()).unwrap();
+                benchmark.bench(&rpcs, &bencher, &bencher, &bencher_utxo_r);
+            }
         }
     }
 }

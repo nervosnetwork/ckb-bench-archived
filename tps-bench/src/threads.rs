@@ -9,6 +9,7 @@ use crate::rpcs::Jsonrpcs;
 use crate::transfer::{construct_unsigned_transaction, sign_transaction};
 use crate::utxo::UTXO;
 
+// TODO move inside Account
 pub fn spawn_pull_utxos(config: &Config, account: &Account) -> (JoinHandle<()>, Receiver<UTXO>) {
     info!("threads::spawn_pull_utxos");
     let rpcs = Jsonrpcs::connect_all(config.rpc_urls()).unwrap();

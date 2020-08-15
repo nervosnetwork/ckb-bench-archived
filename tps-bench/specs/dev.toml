@@ -6,9 +6,6 @@ bencher_private_key = "8c296482b9b763e8be974058272f377462f2975b94454dabb112de0f1
 
 # Network Params
 consensus_cellbase_maturity = 1 # TODO: Add RPC get_consensus_params
-## The listened address of metrics service, outputs in prometheus format.
-## Default is empty, which means metrics service would not start.
-metrics_url = ""
 
 # Dummy Miner
 ## - block_time :: millis
@@ -24,4 +21,4 @@ transaction_type = "In2Out2"
 send_delay = 10
 [[benchmarks]]
 transaction_type = "In2Out2"
-send_delay = = 1
+send_delay = 1

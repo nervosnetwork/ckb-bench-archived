@@ -23,19 +23,12 @@ pub struct Metrics {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct Benchmark {
+pub struct BenchmarkConfig {
     transaction_type: TransactionType,
-    send_delay: Duration,
+    send_delay: u64, // millis
 }
 
-impl Benchmark {
-    pub fn new(transaction_type: TransactionType, send_delay: Duration) -> Self {
-        Self {
-            transaction_type,
-            send_delay,
-        }
-    }
-
+impl BenchmarkConfig {
     pub fn bench(
         &self,
         rpcs: &Jsonrpcs,
@@ -88,7 +81,7 @@ impl Benchmark {
                             cursor = (cursor + 1) % rpcs.len();
                             rpcs[cursor].send_transaction( signed_transaction.data().into());
 
-                            sleep(self.send_delay);
+                            sleep(Duration::from_millis(self.send_delay));
                         }
                         Err(err) => panic!(err),
                     }
