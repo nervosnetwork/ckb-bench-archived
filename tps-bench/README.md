@@ -2,7 +2,7 @@
 ## Usage
 
 ```
-./target/release/tps-bench bench --spec staging --rpc-urls <ENDPOINTS> --seconds 1000
+./target/release/tps-bench bench --spec staging --rpc-urls <ENDPOINTS>
 ```
 
 The default data directory (configured via `data_dir`), two files inside this directory:
@@ -12,14 +12,12 @@ The default data directory (configured via `data_dir`), two files inside this di
 ## TODO
 
   * Configured benchmark => TPS
-  * Configuration `start_miner` and `block_time` are reduandent
-  * Support multiple endpoints
   * Support "protocols://username:password@url"
   * Figure out the relation between the average block time and TPS
   * Figure out the relation between the send transaction rate and TPS
   * Make the result be stable
   * Handle lost transaction, transaction may be lost by all nodes
-  * Based benchmark
+  * Based benchmark => standard output results(txtype, metrics..)
   * Adjust send rate
   * Async send transactions
   * Update logs redability
