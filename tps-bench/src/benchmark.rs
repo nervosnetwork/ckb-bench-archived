@@ -2,10 +2,12 @@ use crate::account::Account;
 use crate::config::TransactionType;
 use crate::global::MIN_SECP_CELL_CAPACITY;
 use crate::net::Net;
+use crate::rpc::Jsonrpc;
 use crate::transfer::{construct_unsigned_transaction, sign_transaction};
 use crate::util::estimate_fee;
 use crate::utxo::UTXO;
-use crossbeam_channel::{bounded, select, Receiver};
+use ckb_types::core::TransactionView;
+use crossbeam_channel::{bounded, select, Receiver, Sender};
 use log::info;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::json;
@@ -61,7 +63,12 @@ impl BenchmarkConfig {
     ) {
         let net_notifier = self.start_net_monitor(net);
 
-        let rpcs = net.endpoints();
+        let txemitters = net
+            .endpoints()
+            .iter()
+            .map(|rpc| spawn_transaction_emitter(rpc.clone()))
+            .collect::<Vec<_>>();
+
         let outputs_count = self.transaction_type.outputs_count() as u64;
         let min_input_total_capacity =
             outputs_count * MIN_SECP_CELL_CAPACITY + estimate_fee(outputs_count);
@@ -91,9 +98,12 @@ impl BenchmarkConfig {
                                 construct_unsigned_transaction(&recipient, inputs.split_off(0), outputs_count);
                             let signed_transaction = sign_transaction(sender, raw_transaction);
 
-                            // TODO async Send transaction to random nodes
-                            cursor = (cursor + 1) % rpcs.len();
-                            rpcs[cursor].send_transaction( signed_transaction.data().into());
+                            loop {
+                                cursor = (cursor + 1) % txemitters.len();
+                                if txemitters[cursor].try_send(signed_transaction.clone()).is_ok() {
+                                    break;
+                                }
+                            }
 
                             sleep(Duration::from_millis(self.send_delay));
                         }
@@ -168,4 +178,15 @@ fn wait_network_stabled(net: &Net) -> Metrics {
             }
         }
     }
+}
+
+fn spawn_transaction_emitter(rpc: Jsonrpc) -> Sender<TransactionView> {
+    let (sender, receiver) = bounded(1000);
+    spawn(move || {
+        while let Ok(transaction) = receiver.recv() {
+            let transaction: TransactionView = transaction;
+            rpc.send_transaction(transaction.data().into());
+        }
+    });
+    sender
 }
