@@ -55,6 +55,11 @@ impl Account {
         rpc: &Jsonrpc,
         until_number: BlockNumber,
     ) -> (Vec<UTXO>, Vec<(BlockNumber, UTXO)>) {
+        info!(
+            "[START] Account::pull_until({}, {})",
+            rpc.uri(),
+            until_number
+        );
         let mut unmatureds: HashMap<OutPoint, (BlockNumber, CellOutput)> = HashMap::default();
         let mut utxoset: HashMap<OutPoint, CellOutput> = HashMap::default();
 
@@ -91,6 +96,13 @@ impl Account {
             }
         }
         info!("complete synchronization, took {:?}", start_time.elapsed());
+        info!(
+            "[END] Account::pull_until({}, {}) matureds: {}, unmatureds: {}",
+            rpc.uri(),
+            until_number,
+            utxoset.len(),
+            unmatureds.len()
+        );
 
         let mut unmatureds: Vec<_> = unmatureds
             .into_iter()

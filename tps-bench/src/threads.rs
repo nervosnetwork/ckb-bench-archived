@@ -11,7 +11,6 @@ use crate::utxo::UTXO;
 
 // TODO move inside Account
 pub fn spawn_pull_utxos(config: &Config, account: &Account) -> (JoinHandle<()>, Receiver<UTXO>) {
-    info!("threads::spawn_pull_utxos");
     let net = Net::connect_all(config.rpc_urls());
     let current_number = net.get_confirmed_tip_number();
     let (matureds, unmatureds) = account.pull_until(&net, current_number);

@@ -2,11 +2,11 @@
 extern crate clap;
 
 use ckb_types::core::BlockView;
-use log::LevelFilter;
+use log::{info, LevelFilter};
 use metrics_exporter_http::HttpExporter;
 use metrics_observer_prometheus::PrometheusBuilder;
 use metrics_runtime::Receiver;
-use simplelog::WriteLogger;
+use simplelog::{CombinedLogger, SimpleLogger, WriteLogger};
 use std::fs::OpenOptions;
 use std::net::SocketAddr;
 
@@ -82,12 +82,17 @@ fn init_logger(config: &Config) {
     let logs = options.open(config.log_path()).unwrap();
     let _metrics = options.open(config.metrics_path()).unwrap();
 
-    WriteLogger::init(LevelFilter::Info, Default::default(), logs).unwrap();
-    println!(
+    CombinedLogger::init(vec![
+        SimpleLogger::new(LevelFilter::Info, Default::default()),
+        WriteLogger::new(LevelFilter::Info, Default::default(), logs),
+    ])
+    .unwrap();
+
+    info!(
         "LogPath: {}",
         config.log_path().canonicalize().unwrap().to_string_lossy()
     );
-    println!(
+    info!(
         "MetricsPath: {}",
         config
             .metrics_path()
@@ -100,7 +105,7 @@ fn init_logger(config: &Config) {
 // TODO It's just draft version, I don't really know how to init metrics service
 fn init_metrics(config: &Config) {
     if config.metrics_url.is_none() {
-        println!("No start metrics service");
+        info!("No start metrics service");
         return;
     }
 
@@ -120,11 +125,12 @@ fn init_metrics(config: &Config) {
         tokio::spawn(exporter.async_run());
     });
 
-    // println!("Metrics URL: {}", metrics_url);
+    // info!("Metrics URL: {}", metrics_url);
 }
 
 /// Initialize the global `GENESIS_INFO` with the genesis block
 pub fn init_global_genesis_info(config: &Config) {
+    info!("[START] init_global_genesis_info");
     let url = config.rpc_urls()[0];
     let rpc = Jsonrpc::connect(url);
     let genesis_block: BlockView = rpc
@@ -134,5 +140,6 @@ pub fn init_global_genesis_info(config: &Config) {
             url
         ))
         .into();
+    info!("[END] init_global_genesis_info {}", genesis_block.hash());
     *GENESIS_INFO.lock().unwrap() = genesis_block.into();
 }

@@ -4,6 +4,7 @@
 macro_rules! prompt_and_exit {
     ($($arg:tt)*) => ({
         eprintln!($($arg)*);
+        log::error!($($arg)*);
         ::std::process::exit(1);
     })
 }

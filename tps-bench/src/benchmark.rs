@@ -42,19 +42,14 @@ impl BenchmarkConfig {
             wait_txpool_empty(&net_);
             spawn(move || {
                 wait_txpool_not_empty(&net_);
-                let metrics = wait_chain_stabled(&net_);
+                let metrics = wait_network_stabled(&net_);
                 let _ = notifier_sender.send(metrics);
             });
             notifier_receiver
         };
 
-        // info!(
-        //     "Start benchmark: {}",
-        //     json!(
-        //         "transaction_type": format!("{:?}", self.transaction_type),
-        //         "send_delay": self.send_delay.as_millis(),
-        //     )
-        // );
+        info!("[START] benchmark: {}", json!(self));
+
         let net = net.endpoints();
         let outputs_count = self.transaction_type.outputs_count() as u64;
         let min_input_total_capacity =
@@ -94,41 +89,32 @@ impl BenchmarkConfig {
                 }
             }
         };
-        // // TODO 完善日志输出
-        info!("Done benchmark: {}", json!(metrics));
+        info!(
+            "[END] benchmark: {}, metrics: {}",
+            json!(self),
+            json!(metrics)
+        );
     }
 }
 
 fn wait_txpool_empty(net: &Net) {
-    info!("START wait_txpool_empty");
-    for rpc in net.endpoints() {
-        loop {
-            let tx_pool_info = rpc.tx_pool_info();
-            if tx_pool_info.pending.value() == 0 && tx_pool_info.proposed.value() == 0 {
-                break;
-            }
-            sleep(Duration::from_secs(1));
-        }
+    info!("[START] wait until all the network txpool become empty");
+    while !net.is_network_txpool_empty() {
+        sleep(Duration::from_secs(1));
     }
-    info!("DONE wait_txpool_empty");
+    info!("[END] all the network txpools are empty");
 }
 
 fn wait_txpool_not_empty(net: &Net) {
-    info!("START wait_txpool_not_empty");
-    for rpc in net.endpoints() {
-        loop {
-            let tx_pool_info = rpc.tx_pool_info();
-            if tx_pool_info.pending.value() != 0 || tx_pool_info.proposed.value() != 0 {
-                break;
-            }
-            sleep(Duration::from_secs(1));
-        }
+    info!("[START] wait until the network txpool become non-empty");
+    while net.is_network_txpool_empty() {
+        sleep(Duration::from_secs(1));
     }
-    info!("DONE wait_txpool_not_empty");
+    info!("[END] all the network txpools are non-empty");
 }
 
-fn wait_chain_stabled(net: &Net) -> Metrics {
-    info!("START wait_chain_stabled");
+fn wait_network_stabled(net: &Net) -> Metrics {
+    info!("[START] wait until the network become stable");
 
     let window_size = 20;
     let window_margin = 10;
