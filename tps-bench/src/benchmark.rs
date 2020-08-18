@@ -9,6 +9,7 @@ use crossbeam_channel::{bounded, select, Receiver};
 use log::info;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::json;
+use std::cmp::min;
 use std::collections::VecDeque;
 use std::thread::{sleep, spawn};
 use std::time::Duration;
@@ -40,11 +41,10 @@ impl BenchmarkConfig {
         info!("[END] net.is_network_txpool_empty() == true");
 
         spawn(move || {
-            info!("[START] wait until net.is_network_txpool_empty() != true");
+            // Wait benchmark starting
             while net.is_network_txpool_empty() {
                 sleep(Duration::from_secs(1));
             }
-            info!("[END] net.is_network_txpool_empty() != true");
 
             let metrics = wait_network_stabled(&net);
             let _ = notifier_sender.send(metrics);
@@ -151,7 +151,7 @@ fn wait_network_stabled(net: &Net) -> Metrics {
             let back = queue.back().unwrap();
             let average_block_transactions = (totaltxns / queue.len()) as u64;
             let elapsed_ms = front.timestamp().saturating_sub(back.timestamp());
-            let average_block_time_ms = elapsed_ms / (queue.len() as u64);
+            let average_block_time_ms = min(1, elapsed_ms / (queue.len() as u64));
             let tps = (totaltxns as f64 * 1000.0 / elapsed_ms as f64) as u64;
             let metrics = Metrics {
                 tps,
