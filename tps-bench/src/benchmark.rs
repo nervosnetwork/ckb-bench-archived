@@ -61,13 +61,20 @@ impl BenchmarkConfig {
     ) {
         let net_notifier = self.start_net_monitor(net);
 
-        let net = net.endpoints();
+        let rpcs = net.endpoints();
         let outputs_count = self.transaction_type.outputs_count() as u64;
         let min_input_total_capacity =
             outputs_count * MIN_SECP_CELL_CAPACITY + estimate_fee(outputs_count);
         let (mut inputs, mut input_total_capacity) = (Vec::new(), 0);
         let mut cursor = 0;
-        info!("[BENCHMARK] {}", json!(self));
+        let current_confirmed_tip = net.get_confirmed_tip_number();
+        info!(
+            "[BENCHMARK] {}",
+            json!({
+                "benchmark": self,
+                "current_confirmed_tip_number": current_confirmed_tip
+            })
+        );
         let metrics: Metrics = loop {
             select! {
                 recv(sender_utxo_rx) -> msg => {
@@ -85,8 +92,8 @@ impl BenchmarkConfig {
                             let signed_transaction = sign_transaction(sender, raw_transaction);
 
                             // TODO async Send transaction to random nodes
-                            cursor = (cursor + 1) % net.len();
-                            net[cursor].send_transaction( signed_transaction.data().into());
+                            cursor = (cursor + 1) % rpcs.len();
+                            rpcs[cursor].send_transaction( signed_transaction.data().into());
 
                             sleep(Duration::from_millis(self.send_delay));
                         }
@@ -114,7 +121,7 @@ impl BenchmarkConfig {
 fn wait_network_stabled(net: &Net) -> Metrics {
     info!("[START] wait until the network become stable");
 
-    let window_size = 20;
+    let window_size = 21;
     let window_margin = 10;
 
     let mut queue = VecDeque::with_capacity(window_size);
@@ -123,7 +130,7 @@ fn wait_network_stabled(net: &Net) -> Metrics {
     loop {
         loop {
             let tip_number = net.get_confirmed_tip_number();
-            let back = queue.front().unwrap();
+            let back = queue.back().unwrap();
             if tip_number > back.number() {
                 let next_block = net.get_block_by_number(back.number() + 1).unwrap().into();
                 while queue.len() >= window_size {
@@ -144,7 +151,7 @@ fn wait_network_stabled(net: &Net) -> Metrics {
             let back = queue.back().unwrap();
             let average_block_transactions = (totaltxns / queue.len()) as u64;
             let elapsed_ms = front.timestamp().saturating_sub(back.timestamp());
-            let average_block_time_ms = elapsed_ms / (totaltxns as u64);
+            let average_block_time_ms = elapsed_ms / (queue.len() as u64);
             let tps = (totaltxns as f64 * 1000.0 / elapsed_ms as f64) as u64;
             let metrics = Metrics {
                 tps,
@@ -154,7 +161,7 @@ fn wait_network_stabled(net: &Net) -> Metrics {
                 end_block_number: back.number(),
             };
 
-            info!("[metrics] {}", json!(metrics).to_string());
+            info!("[metrics] {}", json!(metrics));
 
             if maxtxns <= mintxns + window_margin {
                 return metrics;
