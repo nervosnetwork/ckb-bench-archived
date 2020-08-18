@@ -7,7 +7,7 @@ use crate::transfer::{construct_unsigned_transaction, sign_transaction};
 use crate::util::estimate_fee;
 use crate::utxo::UTXO;
 use ckb_types::core::TransactionView;
-use crossbeam_channel::{bounded, select, Receiver, Sender};
+use crossbeam_channel::{bounded, Receiver, Sender};
 use log::info;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::json;
@@ -82,49 +82,44 @@ impl BenchmarkConfig {
                 "current_confirmed_tip_number": current_confirmed_tip
             })
         );
-        let metrics: Metrics = loop {
-            select! {
-                recv(sender_utxo_rx) -> msg => {
-                    match msg {
-                        Ok(utxo) => {
-                            input_total_capacity += utxo.capacity();
-                            inputs.push(utxo);
-                            if input_total_capacity < min_input_total_capacity {
-                                continue;
-                            }
 
-                            input_total_capacity = 0;
-                            let raw_transaction =
-                                construct_unsigned_transaction(&recipient, inputs.split_off(0), outputs_count);
-                            let signed_transaction = sign_transaction(sender, raw_transaction);
+        while let Ok(utxo) = sender_utxo_rx.recv() {
+            input_total_capacity += utxo.capacity();
+            inputs.push(utxo);
+            if input_total_capacity < min_input_total_capacity {
+                continue;
+            }
 
-                            loop {
-                                cursor = (cursor + 1) % txemitters.len();
-                                if txemitters[cursor].try_send(signed_transaction.clone()).is_ok() {
-                                    break;
-                                }
-                            }
+            // Construct transaction
+            input_total_capacity = 0;
+            let raw_transaction =
+                construct_unsigned_transaction(&recipient, inputs.split_off(0), outputs_count);
+            let signed_transaction = sign_transaction(sender, raw_transaction);
 
-                            sleep(Duration::from_millis(self.send_delay));
-                        }
-                        Err(err) => panic!(err),
-                    }
-                }
-                recv(net_notifier) -> msg => {
-                    match msg {
-                        Ok(metrics) => break metrics,
-                        Err(err) => panic!(err),
-                    }
+            // Send transaction
+            loop {
+                cursor = (cursor + 1) % txemitters.len();
+                if txemitters[cursor]
+                    .try_send(signed_transaction.clone())
+                    .is_ok()
+                {
+                    break;
                 }
             }
-        };
-        info!(
-            "[BENCHMARK RESULT] {}",
-            json!({
-                "benchmark": self,
-                "metrics": metrics,
-            })
-        );
+
+            if let Ok(metrics) = net_notifier.try_recv() {
+                info!(
+                    "[BENCHMARK RESULT] {}",
+                    json!({
+                        "benchmark": self,
+                        "metrics": metrics,
+                    })
+                );
+                break;
+            }
+
+            sleep(Duration::from_millis(self.send_delay));
+        }
     }
 }
 
