@@ -63,7 +63,7 @@ impl Jsonrpc {
             .lock()
             .get_block(hash.unpack())
             .call()
-            .expect("rpc call get_block")
+            .expect(&format!("rpc.get_block({}, {})", self.uri(), hash))
     }
 
     pub fn get_block_by_number(&self, number: CoreBlockNumber) -> Option<BlockView> {
@@ -71,7 +71,11 @@ impl Jsonrpc {
             .lock()
             .get_block_by_number(number.into())
             .call()
-            .expect("rpc call get_block_by_number")
+            .expect(&format!(
+                "rpc.get_block_by_number({}, {})",
+                self.uri(),
+                number
+            ))
     }
 
     pub fn get_transaction(&self, hash: Byte32) -> Option<TransactionWithStatus> {
@@ -79,7 +83,7 @@ impl Jsonrpc {
             .lock()
             .get_transaction(hash.unpack())
             .call()
-            .expect("rpc call get_transaction")
+            .expect(&format!("rpc.get_transaction({}, {})", self.uri(), hash))
     }
 
     pub fn get_block_hash(&self, number: CoreBlockNumber) -> Option<H256> {
@@ -87,7 +91,7 @@ impl Jsonrpc {
             .lock()
             .get_block_hash(number.into())
             .call()
-            .expect("rpc call get_block_hash")
+            .expect(&format!("rpc.get_block_hash({}, {})", self.uri(), number))
     }
 
     pub fn get_tip_header(&self) -> HeaderView {
@@ -95,7 +99,7 @@ impl Jsonrpc {
             .lock()
             .get_tip_header()
             .call()
-            .expect("rpc call get_block_hash")
+            .expect(&format!("rpc.get_tip_header({})", self.uri()))
     }
 
     pub fn get_header_by_number(&self, number: CoreBlockNumber) -> Option<HeaderView> {
@@ -103,7 +107,11 @@ impl Jsonrpc {
             .lock()
             .get_header_by_number(number.into())
             .call()
-            .expect("rpc call get_header_by_number")
+            .expect(&format!(
+                "rpc.get_header_by_number({}, {})",
+                self.uri(),
+                number
+            ))
     }
 
     pub fn get_cells_by_lock_hash(
@@ -116,15 +124,25 @@ impl Jsonrpc {
             .lock()
             .get_cells_by_lock_hash(lock_hash.unpack(), from.into(), to.into())
             .call()
-            .expect("rpc call get_cells_by_lock_hash")
+            .expect(&format!(
+                "rpc.get_cells_by_lock_hash({}, {}, {}, {})",
+                self.uri(),
+                lock_hash,
+                from,
+                to
+            ))
     }
 
     pub fn get_live_cell(&self, out_point: OutPoint) -> CellWithStatus {
         self.inner
             .lock()
-            .get_live_cell(out_point)
+            .get_live_cell(out_point.clone())
             .call()
-            .expect("rpc call get_live_cell")
+            .expect(&format!(
+                "rpc.get_live_cell({}, {:?})",
+                self.uri(),
+                out_point
+            ))
     }
 
     pub fn get_tip_block_number(&self) -> CoreBlockNumber {
@@ -132,7 +150,7 @@ impl Jsonrpc {
             .lock()
             .get_tip_block_number()
             .call()
-            .expect("rpc call get_tip_block_number")
+            .expect(&format!("rpc.get_tip_block_number({})", self.uri()))
             .into()
     }
 
@@ -141,7 +159,7 @@ impl Jsonrpc {
             .lock()
             .local_node_info()
             .call()
-            .expect("rpc call local_node_info")
+            .expect(&format!("rpc.local_node_info({})", self.uri()))
     }
 
     pub fn get_peers(&self) -> Vec<RemoteNode> {
@@ -149,7 +167,7 @@ impl Jsonrpc {
             .lock()
             .get_peers()
             .call()
-            .expect("rpc call get_peers")
+            .expect(&format!("rpc.get_peers({})", self.uri()))
     }
 
     pub fn get_block_template(
@@ -165,15 +183,21 @@ impl Jsonrpc {
             .lock()
             .get_block_template(bytes_limit, proposals_limit, max_version)
             .call()
-            .expect("rpc call get_block_template")
+            .expect(&format!(
+                "rpc.get_block_template({}, {:?}, {:?}, {:?})",
+                self.uri(),
+                bytes_limit,
+                proposals_limit,
+                max_version
+            ))
     }
 
     pub fn submit_block(&self, work_id: String, block: Block) -> Option<H256> {
         self.inner
             .lock()
-            .submit_block(work_id, block)
+            .submit_block(work_id, block.clone())
             .call()
-            .expect("rpc call submit_block")
+            .expect(&format!("rpc.submit_block({}, {:?})", self.uri(), block))
     }
 
     pub fn get_blockchain_info(&self) -> ChainInfo {
@@ -181,23 +205,27 @@ impl Jsonrpc {
             .lock()
             .get_blockchain_info()
             .call()
-            .expect("rpc call get_blockchain_info")
+            .expect(&format!("rpc.get_blockchain_info({})", self.uri()))
     }
 
     pub fn send_transaction(&self, tx: Transaction) -> H256 {
         self.inner
             .lock()
-            .send_transaction(tx)
+            .send_transaction(tx.clone())
             .call()
-            .expect("rpc call send_transaction")
+            .expect(&format!("rpc.send_transaction({}, {:?})", self.uri(), tx))
     }
 
     pub fn broadcast_transaction(&self, tx: Transaction) -> H256 {
         self.inner
             .lock()
-            .broadcast_transaction(tx)
+            .broadcast_transaction(tx.clone())
             .call()
-            .expect("rpc call send_transaction")
+            .expect(&format!(
+                "rpc.broadcast_transaction({}, {:?})",
+                self.uri(),
+                tx
+            ))
     }
 
     pub fn send_transaction_result(&self, tx: Transaction) -> JsonRpcResult<H256> {
@@ -209,31 +237,40 @@ impl Jsonrpc {
             .lock()
             .tx_pool_info()
             .call()
-            .expect("rpc call tx_pool_info")
+            .expect(&format!("rpc.tx_pool_info({})", self.uri()))
     }
 
     pub fn add_node(&self, peer_id: String, address: String) {
         self.inner
             .lock()
-            .add_node(peer_id, address)
+            .add_node(peer_id.clone(), address.clone())
             .call()
-            .expect("rpc call add_node");
+            .expect(&format!(
+                "rpc.add_node({}, {}, {})",
+                self.uri(),
+                peer_id,
+                address
+            ));
     }
 
     pub fn remove_node(&self, peer_id: String) {
         self.inner
             .lock()
-            .remove_node(peer_id)
+            .remove_node(peer_id.clone())
             .call()
-            .expect("rpc call remove_node")
+            .expect(&format!("rpc.remove_node({}, {})", self.uri(), peer_id))
     }
 
     pub fn process_block_without_verify(&self, block: Block) -> Option<H256> {
         self.inner
             .lock()
-            .process_block_without_verify(block)
+            .process_block_without_verify(block.clone())
             .call()
-            .expect("rpc call process_block_without verify")
+            .expect(&format!(
+                "rpc.process_block_without_verify({}, {:?})",
+                self.uri(),
+                block
+            ))
     }
 }
 
