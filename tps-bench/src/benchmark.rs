@@ -29,6 +29,29 @@ pub struct BenchmarkConfig {
 }
 
 impl BenchmarkConfig {
+    fn start_net_monitor(&self, net: &Net) -> Receiver<Metrics> {
+        let (notifier_sender, notifier_receiver) = bounded(0);
+        let net = net.clone();
+
+        info!("[START] wait until net.is_network_txpool_empty() == true");
+        while !net.is_network_txpool_empty() {
+            sleep(Duration::from_secs(1));
+        }
+        info!("[END] net.is_network_txpool_empty() == true");
+
+        spawn(move || {
+            info!("[START] wait until net.is_network_txpool_empty() != true");
+            while net.is_network_txpool_empty() {
+                sleep(Duration::from_secs(1));
+            }
+            info!("[END] net.is_network_txpool_empty() != true");
+
+            let metrics = wait_network_stabled(&net);
+            let _ = notifier_sender.send(metrics);
+        });
+        notifier_receiver
+    }
+
     pub fn bench(
         &self,
         net: &Net,
@@ -36,19 +59,7 @@ impl BenchmarkConfig {
         recipient: &Account,
         sender_utxo_rx: &Receiver<UTXO>,
     ) {
-        let stabled_notifier = {
-            let (notifier_sender, notifier_receiver) = bounded(0);
-            let net_ = net.clone();
-            wait_txpool_empty(&net_);
-            spawn(move || {
-                wait_txpool_not_empty(&net_);
-                let metrics = wait_network_stabled(&net_);
-                let _ = notifier_sender.send(metrics);
-            });
-            notifier_receiver
-        };
-
-        info!("[START] benchmark: {}", json!(self));
+        let net_notifier = self.start_net_monitor(net);
 
         let net = net.endpoints();
         let outputs_count = self.transaction_type.outputs_count() as u64;
@@ -56,6 +67,7 @@ impl BenchmarkConfig {
             outputs_count * MIN_SECP_CELL_CAPACITY + estimate_fee(outputs_count);
         let (mut inputs, mut input_total_capacity) = (Vec::new(), 0);
         let mut cursor = 0;
+        info!("[BENCHMARK] {}", json!(self));
         let metrics: Metrics = loop {
             select! {
                 recv(sender_utxo_rx) -> msg => {
@@ -81,7 +93,7 @@ impl BenchmarkConfig {
                         Err(err) => panic!(err),
                     }
                 }
-                recv(stabled_notifier) -> msg => {
+                recv(net_notifier) -> msg => {
                     match msg {
                         Ok(metrics) => break metrics,
                         Err(err) => panic!(err),
@@ -90,27 +102,13 @@ impl BenchmarkConfig {
             }
         };
         info!(
-            "[END] benchmark: {}, metrics: {}",
-            json!(self),
-            json!(metrics)
+            "[BENCHMARK RESULT] {}",
+            json!({
+                "benchmark": self,
+                "metrics": metrics,
+            })
         );
     }
-}
-
-fn wait_txpool_empty(net: &Net) {
-    info!("[START] wait until all the network txpool become empty");
-    while !net.is_network_txpool_empty() {
-        sleep(Duration::from_secs(1));
-    }
-    info!("[END] all the network txpools are empty");
-}
-
-fn wait_txpool_not_empty(net: &Net) {
-    info!("[START] wait until the network txpool become non-empty");
-    while net.is_network_txpool_empty() {
-        sleep(Duration::from_secs(1));
-    }
-    info!("[END] all the network txpools are non-empty");
 }
 
 fn wait_network_stabled(net: &Net) -> Metrics {
@@ -156,7 +154,7 @@ fn wait_network_stabled(net: &Net) -> Metrics {
                 end_block_number: back.number(),
             };
 
-            info!("metrics: {}", json!(metrics).to_string());
+            info!("[metrics] {}", json!(metrics).to_string());
 
             if maxtxns <= mintxns + window_margin {
                 return metrics;
