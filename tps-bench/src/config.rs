@@ -1,4 +1,4 @@
-use crate::global::CELLBASE_MATURITY;
+use crate::global::{CELLBASE_MATURITY, CONFIRMATION_BLOCKS};
 
 use crate::benchmark::BenchmarkConfig;
 use crate::miner::MinerConfig;
@@ -27,7 +27,9 @@ pub struct Spec {
 
     #[serde(default)]
     pub metrics_url: Option<String>,
+
     pub consensus_cellbase_maturity: u64,
+    pub confirmation_blocks: u64,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy)]
@@ -83,6 +85,7 @@ impl Spec {
 
         create_dir_all(&spec.data_dir).unwrap();
         *CELLBASE_MATURITY.lock().unwrap() = spec.consensus_cellbase_maturity;
+        *CONFIRMATION_BLOCKS.lock().unwrap() = spec.confirmation_blocks;
 
         Ok(spec)
     }

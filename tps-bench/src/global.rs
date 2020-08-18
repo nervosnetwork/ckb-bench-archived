@@ -31,5 +31,6 @@ lazy_static! {
 
 lazy_static! {
     pub static ref GENESIS_INFO: Mutex<GenesisInfo> = Mutex::new(GenesisInfo::default());
-    pub static ref CELLBASE_MATURITY: Mutex<u64> = Mutex::new(0);
+    pub static ref CELLBASE_MATURITY: Mutex<u64> = Mutex::new(1);
+    pub static ref CONFIRMATION_BLOCKS: Mutex<u64> = Mutex::new(0);
 }
