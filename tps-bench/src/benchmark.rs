@@ -1,7 +1,7 @@
 use crate::account::Account;
 use crate::config::TransactionType;
 use crate::global::MIN_SECP_CELL_CAPACITY;
-use crate::rpcs::Jsonrpcs;
+use crate::net::Net;
 use crate::transfer::{construct_unsigned_transaction, sign_transaction};
 use crate::util::estimate_fee;
 use crate::utxo::UTXO;
@@ -31,18 +31,18 @@ pub struct BenchmarkConfig {
 impl BenchmarkConfig {
     pub fn bench(
         &self,
-        rpcs: &Jsonrpcs,
+        net: &Net,
         sender: &Account,
         recipient: &Account,
         sender_utxo_rx: &Receiver<UTXO>,
     ) {
         let stabled_notifier = {
             let (notifier_sender, notifier_receiver) = bounded(0);
-            let rpcs_ = rpcs.clone();
-            wait_txpool_empty(&rpcs_);
+            let net_ = net.clone();
+            wait_txpool_empty(&net_);
             spawn(move || {
-                wait_txpool_not_empty(&rpcs_);
-                let metrics = wait_chain_stabled(&rpcs_);
+                wait_txpool_not_empty(&net_);
+                let metrics = wait_chain_stabled(&net_);
                 let _ = notifier_sender.send(metrics);
             });
             notifier_receiver
@@ -55,7 +55,7 @@ impl BenchmarkConfig {
         //         "send_delay": self.send_delay.as_millis(),
         //     )
         // );
-        let rpcs = rpcs.endpoints();
+        let net = net.endpoints();
         let outputs_count = self.transaction_type.outputs_count() as u64;
         let min_input_total_capacity =
             outputs_count * MIN_SECP_CELL_CAPACITY + estimate_fee(outputs_count);
@@ -78,8 +78,8 @@ impl BenchmarkConfig {
                             let signed_transaction = sign_transaction(sender, raw_transaction);
 
                             // TODO async Send transaction to random nodes
-                            cursor = (cursor + 1) % rpcs.len();
-                            rpcs[cursor].send_transaction( signed_transaction.data().into());
+                            cursor = (cursor + 1) % net.len();
+                            net[cursor].send_transaction( signed_transaction.data().into());
 
                             sleep(Duration::from_millis(self.send_delay));
                         }
@@ -99,9 +99,9 @@ impl BenchmarkConfig {
     }
 }
 
-fn wait_txpool_empty(rpcs: &Jsonrpcs) {
+fn wait_txpool_empty(net: &Net) {
     info!("START wait_txpool_empty");
-    for rpc in rpcs.endpoints() {
+    for rpc in net.endpoints() {
         loop {
             let tx_pool_info = rpc.tx_pool_info();
             if tx_pool_info.pending.value() == 0 && tx_pool_info.proposed.value() == 0 {
@@ -113,9 +113,9 @@ fn wait_txpool_empty(rpcs: &Jsonrpcs) {
     info!("DONE wait_txpool_empty");
 }
 
-fn wait_txpool_not_empty(rpcs: &Jsonrpcs) {
+fn wait_txpool_not_empty(net: &Net) {
     info!("START wait_txpool_not_empty");
-    for rpc in rpcs.endpoints() {
+    for rpc in net.endpoints() {
         loop {
             let tx_pool_info = rpc.tx_pool_info();
             if tx_pool_info.pending.value() != 0 || tx_pool_info.proposed.value() != 0 {
@@ -127,21 +127,21 @@ fn wait_txpool_not_empty(rpcs: &Jsonrpcs) {
     info!("DONE wait_txpool_not_empty");
 }
 
-fn wait_chain_stabled(rpcs: &Jsonrpcs) -> Metrics {
+fn wait_chain_stabled(net: &Net) -> Metrics {
     info!("START wait_chain_stabled");
 
     let window_size = 20;
     let window_margin = 10;
 
     let mut queue = VecDeque::with_capacity(window_size);
-    queue.push_back(rpcs.get_fixed_tip_block());
+    queue.push_back(net.get_confirmed_tip_block());
 
     loop {
         loop {
-            let tip_number = rpcs.get_fixed_tip_number();
+            let tip_number = net.get_confirmed_tip_number();
             let back = queue.front().unwrap();
             if tip_number > back.number() {
-                let next_block = rpcs.get_block_by_number(back.number() + 1).unwrap().into();
+                let next_block = net.get_block_by_number(back.number() + 1).unwrap().into();
                 while queue.len() >= window_size {
                     queue.pop_front();
                 }

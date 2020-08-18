@@ -15,14 +15,14 @@ use crate::command::{commandline, CommandLine};
 use crate::config::Config;
 use crate::global::GENESIS_INFO;
 use crate::miner::Miner;
+use crate::net::Net;
 use crate::rpc::Jsonrpc;
-use crate::rpcs::Jsonrpcs;
 use crate::threads::{spawn_miner, spawn_pull_utxos, spawn_transfer_utxos};
 
 pub mod benchmark;
 pub mod global;
 pub mod miner;
-pub mod rpcs;
+pub mod net;
 pub mod threads;
 pub mod transfer;
 pub mod util;
@@ -69,8 +69,8 @@ fn main() {
 
             // Benchmark
             for benchmark in config.benchmarks.iter() {
-                let rpcs = Jsonrpcs::connect_all(config.rpc_urls()).unwrap();
-                benchmark.bench(&rpcs, &bencher, &bencher, &bencher_utxo_r);
+                let net = Net::connect_all(config.rpc_urls());
+                benchmark.bench(&net, &bencher, &bencher, &bencher_utxo_r);
             }
         }
     }
@@ -126,16 +126,13 @@ fn init_metrics(config: &Config) {
 /// Initialize the global `GENESIS_INFO` with the genesis block
 pub fn init_global_genesis_info(config: &Config) {
     let url = config.rpc_urls()[0];
-    let rpc = match Jsonrpc::connect(url) {
-        Ok(rpc) => rpc,
-        Err(err) => prompt_and_exit!("Jsonrpc::connect({}) error: {}", url, err),
-    };
-    let genesis_block: BlockView = match rpc.get_block_by_number(0) {
-        Some(genesis_block) => genesis_block.into(),
-        None => prompt_and_exit!(
-            "Jsonrpc::get_block_by_number(0) from {} error: return None",
+    let rpc = Jsonrpc::connect(url);
+    let genesis_block: BlockView = rpc
+        .get_block_by_number(0)
+        .expect(&format!(
+            "Jsonrpc::get_block_by_number({}, 0), error: return None",
             url
-        ),
-    };
+        ))
+        .into();
     *GENESIS_INFO.lock().unwrap() = genesis_block.into();
 }

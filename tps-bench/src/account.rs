@@ -1,7 +1,7 @@
 use crate::config::TransactionType;
 use crate::global::{CELLBASE_MATURITY, MIN_SECP_CELL_CAPACITY, SIGHASH_ALL_TYPE_HASH};
+use crate::net::Net;
 use crate::rpc::Jsonrpc;
-use crate::rpcs::Jsonrpcs;
 use crate::transfer::{construct_unsigned_transaction, sign_transaction};
 use crate::util::estimate_fee;
 use crate::utxo::UTXO;
@@ -48,7 +48,7 @@ impl Account {
             .build()
     }
 
-    // TODO multiple rpcs
+    // TODO multiple net
     // Search the blockchain `[from_number, to_number]` and return the live utxos owned by `privkey`
     pub fn pull_until(
         &self,
@@ -109,18 +109,18 @@ impl Account {
     /// Search (from_number, infinity)
     pub fn pull_forever(
         &self,
-        rpcs: Jsonrpcs,
+        net: Net,
         from_number: BlockNumber,
         mut unmatureds: Vec<(BlockNumber, UTXO)>,
         utxo_sender: Sender<UTXO>,
     ) {
         let mut number = from_number;
         loop {
-            let tip_number = rpcs.get_fixed_tip_number();
+            let tip_number = net.get_confirmed_tip_number();
             while number < tip_number {
                 number += 1;
 
-                let block: core::BlockView = rpcs
+                let block: core::BlockView = net
                     .get_block_by_number(number)
                     .expect("get_block_by_number")
                     .into();
@@ -154,7 +154,7 @@ impl Account {
     pub fn transfer_forever(
         &self,
         recipient: Account,
-        rpcs: Jsonrpcs,
+        net: Net,
         utxo_receiver: Receiver<UTXO>,
         transaction_type: TransactionType,
         duration: Option<Duration>,
@@ -165,7 +165,7 @@ impl Account {
             outputs_count * MIN_SECP_CELL_CAPACITY + estimate_fee(outputs_count);
         let (mut inputs, mut input_total_capacity) = (Vec::new(), 0);
 
-        let senders = rpcs
+        let senders = net
             .endpoints()
             .iter()
             .map(|rpc| {

@@ -5,8 +5,7 @@ use std::ops::Deref;
 use std::time::Duration;
 
 use crate::account::Account;
-use crate::prompt_and_exit;
-use crate::rpcs::Jsonrpcs;
+use crate::net::Net;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct MinerConfig {
@@ -16,21 +15,18 @@ pub struct MinerConfig {
 
 #[derive(Clone)]
 pub struct Miner {
-    rpcs: Jsonrpcs,
+    net: Net,
     account: Account,
     pub block_time: Duration,
 }
 
 impl Miner {
     pub fn new(miner_config: &MinerConfig, rpc_urls: Vec<&str>) -> Self {
-        let rpcs = match Jsonrpcs::connect_all(rpc_urls) {
-            Ok(rpcs) => rpcs,
-            Err(err) => prompt_and_exit!("Jsonrpcs::connect_all() error: {}", err),
-        };
+        let net = Net::connect_all(rpc_urls);
         let account = Account::new(&miner_config.private_key);
         let block_time = Duration::from_millis(miner_config.block_time);
         Self {
-            rpcs,
+            net,
             account,
             block_time,
         }
@@ -38,12 +34,12 @@ impl Miner {
 
     // TODO multiple miners
     pub fn generate_block(&self) {
-        let template = self.rpcs.get_block_template(None, None, None);
+        let template = self.net.get_block_template(None, None, None);
         let work_id = template.work_id.value();
         let block_number = template.number.value();
         let block: Block = template.into();
 
-        if let Some(block_hash) = self.rpcs.submit_block(work_id.to_string(), block.into()) {
+        if let Some(block_hash) = self.net.submit_block(work_id.to_string(), block.into()) {
             info!("submit block  #{} {:#x}", block_number, block_hash);
         } else {
             error!("submit block  #{} None", block_number);
@@ -60,7 +56,7 @@ impl Miner {
         let configured_miner_lock_script = self.lock_script();
         let block_assembler_lock_script = {
             let cellbase: Transaction = self
-                .rpcs
+                .net
                 .get_block_template(None, None, None)
                 .cellbase
                 .data
