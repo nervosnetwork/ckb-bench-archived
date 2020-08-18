@@ -11,7 +11,7 @@ use crossbeam_channel::{bounded, Receiver, Sender};
 use log::info;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::json;
-use std::cmp::min;
+use std::cmp::max;
 use std::collections::VecDeque;
 use std::thread::{sleep, spawn};
 use std::time::Duration;
@@ -36,7 +36,7 @@ impl BenchmarkConfig {
         let (notifier_sender, notifier_receiver) = bounded(0);
         let net = net.clone();
 
-        info!("[START] wait until net.is_network_txpool_empty() == true");
+        info!("[START] wait net.is_network_txpool_empty() == true");
         while !net.is_network_txpool_empty() {
             sleep(Duration::from_secs(1));
         }
@@ -107,6 +107,9 @@ impl BenchmarkConfig {
                 }
             }
 
+            // Sleep every time sending transaction.
+            sleep(Duration::from_millis(self.send_delay));
+
             if let Ok(metrics) = net_notifier.try_recv() {
                 info!(
                     "[BENCHMARK RESULT] {}",
@@ -117,14 +120,12 @@ impl BenchmarkConfig {
                 );
                 break;
             }
-
-            sleep(Duration::from_millis(self.send_delay));
         }
     }
 }
 
 fn wait_network_stabled(net: &Net) -> Metrics {
-    info!("[START] wait until the network become stable");
+    info!("[START] wait the network become stable");
 
     let window_size = 21;
     let window_margin = 10;
@@ -156,7 +157,7 @@ fn wait_network_stabled(net: &Net) -> Metrics {
             let back = queue.back().unwrap();
             let average_block_transactions = (totaltxns / queue.len()) as u64;
             let elapsed_ms = front.timestamp().saturating_sub(back.timestamp());
-            let average_block_time_ms = min(1, elapsed_ms / (queue.len() as u64));
+            let average_block_time_ms = max(1, elapsed_ms / (queue.len() as u64));
             let tps = (totaltxns as f64 * 1000.0 / elapsed_ms as f64) as u64;
             let metrics = Metrics {
                 tps,
