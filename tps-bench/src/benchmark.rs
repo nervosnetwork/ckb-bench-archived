@@ -36,11 +36,11 @@ impl BenchmarkConfig {
         let (notifier_sender, notifier_receiver) = bounded(0);
         let net = net.clone();
 
-        info!("[START] wait net.is_network_txpool_empty() == true");
+        info!("[START] wait net::is_network_txpool_empty()");
         while !net.is_network_txpool_empty() {
             sleep(Duration::from_secs(1));
         }
-        info!("[END] net.is_network_txpool_empty() == true");
+        info!("[END] net::is_network_txpool_empty()");
 
         spawn(move || {
             // Wait benchmark starting
