@@ -23,3 +23,5 @@ The default data directory (configured via `data_dir`), two files inside this di
   * Update logs redability
   * Truncate the target nodes via RPC [`truncate`](https://github.com/nervosnetwork/ckb/pull/2064) before and after benching
   * Panic hook: panic_on_abort, print exit message
+  * Start from `tip - 1000` but not genesis
+  * `ckb` monitor `get_block_template` timeused

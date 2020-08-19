@@ -122,7 +122,7 @@ impl Metrics {
         let front = blocks.first().unwrap();
         let back = blocks.last().unwrap();
         let average_block_transactions = (totaltxns / blocks.len()) as u64;
-        let elapsed_ms = front.timestamp().saturating_sub(back.timestamp());
+        let elapsed_ms = back.timestamp().saturating_sub(front.timestamp());
         let average_block_time_ms = max(1, elapsed_ms / (blocks.len() as u64));
         let tps = (totaltxns as f64 * 1000.0 / elapsed_ms as f64) as u64;
         Metrics {
