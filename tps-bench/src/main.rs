@@ -6,6 +6,7 @@ use log::{info, LevelFilter};
 use metrics_exporter_http::HttpExporter;
 use metrics_observer_prometheus::PrometheusBuilder;
 use metrics_runtime::Receiver;
+use serde_json::json;
 use simplelog::{CombinedLogger, WriteLogger};
 use std::fs::OpenOptions;
 use std::net::SocketAddr;
@@ -89,6 +90,7 @@ fn init_logger(config: &Config) {
     ])
     .unwrap();
 
+    info!("TPSBench start with configuration: {}", json!(config));
     info!(
         "LogPath: {}",
         config.log_path().canonicalize().unwrap().to_string_lossy()
