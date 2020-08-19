@@ -106,7 +106,9 @@ fn spawn_transaction_emitter(rpc: Jsonrpc) -> Sender<TransactionView> {
     spawn(move || {
         while let Ok(transaction) = receiver.recv() {
             let transaction: TransactionView = transaction;
-            rpc.send_transaction(transaction.data().into());
+            while rpc.send_transaction_result(transaction.data().into()).is_err() {
+                sleep(Duration::from_secs(1));
+            }
         }
     });
     sender
