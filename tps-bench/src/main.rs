@@ -83,7 +83,7 @@ fn init_logger(config: &Config) {
     let _metrics = options.open(config.metrics_path()).unwrap();
 
     CombinedLogger::init(vec![
-        SimpleLogger::new(LevelFilter::Info, Default::default()),
+        // SimpleLogger::new(LevelFilter::Info, Default::default()),
         WriteLogger::new(LevelFilter::Info, Default::default(), logs),
     ])
     .unwrap();
