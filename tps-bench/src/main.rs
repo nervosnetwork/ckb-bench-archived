@@ -14,7 +14,7 @@ use std::net::SocketAddr;
 use crate::account::Account;
 use crate::command::{commandline, CommandLine};
 use crate::config::Config;
-use crate::global::GENESIS_INFO;
+use crate::global::{GENESIS_INFO, METRICS_RECORDER};
 use crate::miner::Miner;
 use crate::net::Net;
 use crate::rpc::Jsonrpc;
@@ -38,6 +38,7 @@ pub mod utxo;
 fn main() {
     match commandline() {
         CommandLine::MineMode(config, blocks) => {
+            info!("\nTPSBench start with configuration: {}", json!(config));
             init_logger(&config);
             init_global_genesis_info(&config);
 
@@ -47,7 +48,9 @@ fn main() {
             miner.generate_blocks(blocks);
         }
         CommandLine::BenchMode(config) => {
+            info!("\nTPSBench start with configuration: {}", json!(config));
             init_logger(&config);
+            init_metrics_recorder(&config);
             init_metrics(&config);
             init_global_genesis_info(&config);
 
@@ -81,27 +84,30 @@ fn main() {
 fn init_logger(config: &Config) {
     let mut options = OpenOptions::new();
     let options = options.create(true).append(true);
-    let logs = options.open(config.log_path()).unwrap();
-    let _metrics = options.open(config.metrics_path()).unwrap();
-
+    let path = config.log_path();
+    let file = options.open(&path).unwrap();
     CombinedLogger::init(vec![
         // SimpleLogger::new(LevelFilter::Info, Default::default()),
-        WriteLogger::new(LevelFilter::Info, Default::default(), logs),
+        WriteLogger::new(LevelFilter::Info, Default::default(), file),
     ])
     .unwrap();
-
-    info!("TPSBench start with configuration: {}", json!(config));
+    let abs_path = path.canonicalize().unwrap();
     info!(
-        "LogPath: {}",
-        config.log_path().canonicalize().unwrap().to_string_lossy()
+        "TPSBench appends logs into {}",
+        abs_path.canonicalize().unwrap().to_string_lossy()
     );
+}
+
+fn init_metrics_recorder(config: &Config) {
+    let mut options = OpenOptions::new();
+    let options = options.create(true).append(true);
+    let path = config.metrics_path();
+    let file = options.open(&path).unwrap();
+    *METRICS_RECORDER.lock().unwrap() = Some(file);
+    let abs_path = path.canonicalize().unwrap();
     info!(
-        "MetricsPath: {}",
-        config
-            .metrics_path()
-            .canonicalize()
-            .unwrap()
-            .to_string_lossy()
+        "TPSBench appends benchmark results into {}",
+        abs_path.to_string_lossy()
     );
 }
 

@@ -1,6 +1,6 @@
 use crate::account::Account;
 use crate::config::TransactionType;
-use crate::global::MIN_SECP_CELL_CAPACITY;
+use crate::global::{METRICS_RECORDER, MIN_SECP_CELL_CAPACITY};
 use crate::net::Net;
 use crate::net_monitor::wait_network_stabled;
 use crate::rpc::Jsonrpc;
@@ -12,6 +12,7 @@ use crossbeam_channel::{bounded, Receiver, Sender};
 use log::info;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::json;
+use std::io::Write;
 use std::thread::{sleep, spawn};
 use std::time::Duration;
 
@@ -90,13 +91,19 @@ impl BenchmarkConfig {
             sleep(Duration::from_millis(self.send_delay));
 
             if let Ok(metrics) = net_notifier.try_recv() {
-                info!(
-                    "[BENCHMARK RESULT] {}",
-                    json!({
-                        "benchmark": self,
-                        "metrics": metrics,
-                    })
-                );
+                let result = json!({
+                    "benchmark": self,
+                    "metrics": metrics,
+                });
+
+                let recorder = METRICS_RECORDER.lock().unwrap();
+                recorder.as_ref().map(|mut recorder| {
+                    let _ = recorder.write(result.to_string().as_bytes());
+                    let _ = recorder.write("\n".as_bytes());
+                    let _ = recorder.flush();
+                });
+
+                info!("[BENCHMARK RESULT] {}", result,);
                 break;
             }
         }
