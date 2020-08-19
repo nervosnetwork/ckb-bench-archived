@@ -22,3 +22,4 @@ The default data directory (configured via `data_dir`), two files inside this di
   * Async send transactions
   * Update logs redability
   * Truncate the target nodes via RPC [`truncate`](https://github.com/nervosnetwork/ckb/pull/2064) before and after benching
+  * Panic hook: panic_on_abort, print exit message

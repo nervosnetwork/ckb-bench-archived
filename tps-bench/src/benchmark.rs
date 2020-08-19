@@ -29,10 +29,20 @@ impl BenchmarkConfig {
         recipient: &Account,
         sender_utxo_rx: &Receiver<UTXO>,
     ) {
+        crate::net_monitor::wait_network_txpool_empty(&net);
+
+        let current_confirmed_tip = net.get_confirmed_tip_number();
+        info!(
+            "[BENCHMARK] {}",
+            json!({
+                "benchmark": self,
+                "current_confirmed_tip_number": current_confirmed_tip
+            })
+        );
+
         let net_notifier = {
             let net = net.clone();
             let (net_sender, net_notifier) = bounded(1);
-            crate::net_monitor::wait_network_txpool_empty(&net);
             spawn(move || {
                 let metrics = wait_network_stabled(&net);
                 let _ = net_sender.send(metrics);
@@ -51,14 +61,6 @@ impl BenchmarkConfig {
             outputs_count * MIN_SECP_CELL_CAPACITY + estimate_fee(outputs_count);
         let (mut inputs, mut input_total_capacity) = (Vec::new(), 0);
         let mut cursor = 0;
-        let current_confirmed_tip = net.get_confirmed_tip_number();
-        info!(
-            "[BENCHMARK] {}",
-            json!({
-                "benchmark": self,
-                "current_confirmed_tip_number": current_confirmed_tip
-            })
-        );
 
         while let Ok(utxo) = sender_utxo_rx.recv() {
             input_total_capacity += utxo.capacity();
