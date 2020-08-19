@@ -17,7 +17,7 @@ The default data directory (configured via `data_dir`), two files inside this di
   * Figure out the relation between the send transaction rate and TPS
   * Make the result be stable
   * Handle lost transaction, transaction may be lost by all nodes
-  * Based benchmark => standard output results(txtype, metrics..)
+  * Based benchmark => standard output results (txtype, metrics..)
   * Adjust send rate
   * Async send transactions
   * Update logs redability
@@ -25,3 +25,4 @@ The default data directory (configured via `data_dir`), two files inside this di
   * Panic hook: panic_on_abort, print exit message
   * Start from `tip - 1000` but not genesis
   * `ckb` monitor `get_block_template` timeused
+  * metrics.json has removed
