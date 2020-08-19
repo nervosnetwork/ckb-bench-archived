@@ -70,14 +70,4 @@ impl Net {
         }
         unreachable!()
     }
-
-    pub fn is_network_txpool_empty(&self) -> bool {
-        for rpc in self.endpoints() {
-            let tx_pool_info = rpc.tx_pool_info();
-            if tx_pool_info.pending.value() != 0 || tx_pool_info.proposed.value() != 0 {
-                return false;
-            }
-        }
-        true
-    }
 }

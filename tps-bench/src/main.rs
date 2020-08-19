@@ -23,6 +23,7 @@ pub mod benchmark;
 pub mod global;
 pub mod miner;
 pub mod net;
+pub mod net_monitor;
 pub mod threads;
 pub mod transfer;
 pub mod util;

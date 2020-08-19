@@ -2,6 +2,7 @@ use crate::account::Account;
 use crate::config::TransactionType;
 use crate::global::MIN_SECP_CELL_CAPACITY;
 use crate::net::Net;
+use crate::net_monitor::wait_network_stabled;
 use crate::rpc::Jsonrpc;
 use crate::transfer::{construct_unsigned_transaction, sign_transaction};
 use crate::util::estimate_fee;
@@ -11,19 +12,8 @@ use crossbeam_channel::{bounded, Receiver, Sender};
 use log::info;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::json;
-use std::cmp::max;
-use std::collections::VecDeque;
 use std::thread::{sleep, spawn};
 use std::time::Duration;
-
-#[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct Metrics {
-    tps: u64,
-    average_block_time_ms: u64,
-    average_block_transactions: u64,
-    start_block_number: u64,
-    end_block_number: u64,
-}
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct BenchmarkConfig {
@@ -32,28 +22,6 @@ pub struct BenchmarkConfig {
 }
 
 impl BenchmarkConfig {
-    fn start_net_monitor(&self, net: &Net) -> Receiver<Metrics> {
-        let (notifier_sender, notifier_receiver) = bounded(0);
-        let net = net.clone();
-
-        info!("[START] wait net::is_network_txpool_empty()");
-        while !net.is_network_txpool_empty() {
-            sleep(Duration::from_secs(1));
-        }
-        info!("[END] net::is_network_txpool_empty()");
-
-        spawn(move || {
-            // Wait benchmark starting
-            while net.is_network_txpool_empty() {
-                sleep(Duration::from_secs(1));
-            }
-
-            let metrics = wait_network_stabled(&net);
-            let _ = notifier_sender.send(metrics);
-        });
-        notifier_receiver
-    }
-
     pub fn bench(
         &self,
         net: &Net,
@@ -61,7 +29,16 @@ impl BenchmarkConfig {
         recipient: &Account,
         sender_utxo_rx: &Receiver<UTXO>,
     ) {
-        let net_notifier = self.start_net_monitor(net);
+        let net_notifier = {
+            let net = net.clone();
+            let (net_sender, net_notifier) = bounded(1);
+            crate::net_monitor::wait_network_txpool_empty(&net);
+            spawn(move || {
+                let metrics = wait_network_stabled(&net);
+                let _ = net_sender.send(metrics);
+            });
+            net_notifier
+        };
 
         let txemitters = net
             .endpoints()
@@ -119,58 +96,6 @@ impl BenchmarkConfig {
                     })
                 );
                 break;
-            }
-        }
-    }
-}
-
-fn wait_network_stabled(net: &Net) -> Metrics {
-    info!("[START] wait the network become stable");
-
-    let window_size = 21;
-    let window_margin = 10;
-
-    let mut queue = VecDeque::with_capacity(window_size);
-    queue.push_back(net.get_confirmed_tip_block());
-
-    loop {
-        loop {
-            let tip_number = net.get_confirmed_tip_number();
-            let back = queue.back().unwrap();
-            if tip_number > back.number() {
-                let next_block = net.get_block_by_number(back.number() + 1).unwrap().into();
-                while queue.len() >= window_size {
-                    queue.pop_front();
-                }
-                queue.push_back(next_block);
-                break;
-            } else {
-                sleep(Duration::from_secs(1));
-            }
-        }
-
-        if queue.len() >= window_size {
-            let mintxns = queue.iter().map(|b| b.transactions().len()).min().unwrap();
-            let maxtxns = queue.iter().map(|b| b.transactions().len()).max().unwrap();
-            let totaltxns: usize = queue.iter().map(|block| block.transactions().len()).sum();
-            let front = queue.front().unwrap();
-            let back = queue.back().unwrap();
-            let average_block_transactions = (totaltxns / queue.len()) as u64;
-            let elapsed_ms = front.timestamp().saturating_sub(back.timestamp());
-            let average_block_time_ms = max(1, elapsed_ms / (queue.len() as u64));
-            let tps = (totaltxns as f64 * 1000.0 / elapsed_ms as f64) as u64;
-            let metrics = Metrics {
-                tps,
-                average_block_time_ms,
-                average_block_transactions,
-                start_block_number: front.number(),
-                end_block_number: back.number(),
-            };
-
-            info!("[metrics] {}", json!(metrics));
-
-            if maxtxns <= mintxns + window_margin {
-                return metrics;
             }
         }
     }
