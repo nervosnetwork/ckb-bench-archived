@@ -9,7 +9,7 @@ use crate::util::estimate_fee;
 use crate::utxo::UTXO;
 use ckb_types::core::TransactionView;
 use crossbeam_channel::{bounded, Receiver, Sender};
-use log::{error, info};
+use log::info;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::json;
 use std::io::Write;
@@ -122,19 +122,15 @@ fn spawn_transaction_emitter(rpc: Jsonrpc) -> Sender<TransactionView> {
     spawn(move || {
         while let Ok(transaction) = receiver.recv() {
             let transaction: TransactionView = transaction;
-            while let Err(err) = rpc.send_transaction_result(transaction.data().into()) {
-                if !err.to_string().contains("PoolIsFull")
-                    && !err.to_string().contains("TransactionPoolFull")
-                {
-                    error!(
-                        "rpc::send_transaction({}, {}, {:?}) error: {:?}",
-                        rpc.uri(),
-                        transaction,
-                        transaction,
-                        err
-                    );
+            loop {
+                if let Err(err) = rpc.send_transaction_result(transaction.data().into()) {
+                    let errs = err.to_string();
+                    if errs.contains("PoolIsFull") || errs.contains("TransactionPoolFull") {
+                        sleep(Duration::from_secs(1));
+                        continue;
+                    }
                 }
-                sleep(Duration::from_secs(1));
+                break;
             }
         }
     });
