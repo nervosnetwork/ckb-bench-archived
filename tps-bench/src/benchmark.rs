@@ -123,6 +123,8 @@ fn spawn_transaction_emitter(rpc: Jsonrpc) -> Sender<TransactionView> {
         while let Ok(transaction) = receiver.recv() {
             let transaction: TransactionView = transaction;
             loop {
+                // Chain reorg will cause many double-spent problem. Just ignore it. The chain
+                // monitor will solve it.
                 if let Err(err) = rpc.send_transaction_result(transaction.data().into()) {
                     let errs = err.to_string();
                     if errs.contains("PoolIsFull") || errs.contains("TransactionPoolFull") {

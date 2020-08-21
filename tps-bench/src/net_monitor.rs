@@ -55,11 +55,6 @@ pub fn wait_network_txpool_empty(net: &Net) {
 }
 
 fn wait_custom_blocks_elapsed(net: &Net, window: u64, warmup: u64) -> Metrics {
-    info!("[START] net_monitor::wait_custom_blocks_elapsed");
-    while is_network_txpool_empty(net) {
-        sleep(Duration::from_secs(1));
-    }
-
     let current_tip_number = net.get_confirmed_tip_number();
     while current_tip_number + warmup > net.get_confirmed_tip_number() {
         sleep(Duration::from_secs(1));
