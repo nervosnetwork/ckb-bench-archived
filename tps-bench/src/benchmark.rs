@@ -19,7 +19,7 @@ use std::time::{Duration, Instant};
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct BenchmarkConfig {
     transaction_type: TransactionType,
-    send_delay: u64, // millis
+    send_delay: u64, // micros
 }
 
 impl BenchmarkConfig {
@@ -95,7 +95,7 @@ impl BenchmarkConfig {
             }
 
             // Sleep every time sending transaction.
-            sleep(Duration::from_millis(self.send_delay));
+            sleep(Duration::from_micros(self.send_delay));
 
             if let Ok(metrics) = net_notifier.try_recv() {
                 let result = json!({
