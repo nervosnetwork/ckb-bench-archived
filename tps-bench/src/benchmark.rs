@@ -18,8 +18,8 @@ use std::time::{Duration, Instant};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct BenchmarkConfig {
-    transaction_type: TransactionType,
-    send_delay: u64, // micros
+    pub transaction_type: TransactionType,
+    pub send_delay: u64, // micros
 }
 
 impl BenchmarkConfig {
@@ -29,7 +29,7 @@ impl BenchmarkConfig {
         sender: &Account,
         recipient: &Account,
         sender_utxo_rx: &Receiver<UTXO>,
-    ) {
+    ) -> u64 {
         crate::net_monitor::wait_network_txpool_empty(&net);
 
         let current_confirmed_tip = net.get_confirmed_tip_number();
@@ -111,9 +111,10 @@ impl BenchmarkConfig {
                 });
 
                 info!("[BENCHMARK RESULT] {}", result,);
-                break;
+                return result["metrics"]["tps"].as_u64().expect("get tps");
             }
         }
+        return 0
     }
 }
 
