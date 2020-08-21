@@ -6,7 +6,7 @@ use serde_json::json;
 use std::cmp::max;
 use std::collections::VecDeque;
 use std::thread::sleep;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 enum MethodToEvalNetStable {
     #[allow(dead_code)]
@@ -56,14 +56,34 @@ pub fn wait_network_txpool_empty(net: &Net) {
 
 fn wait_custom_blocks_elapsed(net: &Net, window: u64, warmup: u64) -> Metrics {
     let current_tip_number = net.get_confirmed_tip_number();
+    let (mut last_print, start_time) = (Instant::now(), Instant::now());
     while current_tip_number + warmup > net.get_confirmed_tip_number() {
+        if last_print.elapsed() >= Duration::from_secs(60) {
+            last_print = Instant::now();
+            info!(
+                "warmup progress ({}/{}) ...",
+                current_tip_number,
+                current_tip_number + warmup
+            );
+        }
         sleep(Duration::from_secs(1));
     }
+    info!("complete warmup, took {:?}", start_time.elapsed());
 
     let current_tip_number = net.get_confirmed_tip_number();
+    let (mut last_print, start_time) = (Instant::now(), Instant::now());
     while current_tip_number + window > net.get_confirmed_tip_number() {
+        if last_print.elapsed() >= Duration::from_secs(60) {
+            last_print = Instant::now();
+            info!(
+                "evaluation progress ({}/{}) ...",
+                current_tip_number,
+                current_tip_number + warmup
+            );
+        }
         sleep(Duration::from_secs(1));
     }
+    info!("complete evaluation, took {:?}", start_time.elapsed());
 
     let blocks = (current_tip_number..current_tip_number + window)
         .map(|number| net.get_block_by_number(number).unwrap())
