@@ -73,8 +73,8 @@ fn main() {
             }
 
             // Benchmark
+            let net = Net::connect_all(config.rpc_urls());
             for benchmark in config.benchmarks.iter() {
-                let net = Net::connect_all(config.rpc_urls());
                 benchmark.bench(&net, &bencher, &bencher, &bencher_utxo_r);
             }
         }

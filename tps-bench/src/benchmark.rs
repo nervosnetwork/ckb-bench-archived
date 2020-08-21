@@ -9,12 +9,12 @@ use crate::util::estimate_fee;
 use crate::utxo::UTXO;
 use ckb_types::core::TransactionView;
 use crossbeam_channel::{bounded, Receiver, Sender};
-use log::info;
+use log::{error, info};
 use serde_derive::{Deserialize, Serialize};
 use serde_json::json;
 use std::io::Write;
 use std::thread::{sleep, spawn};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct BenchmarkConfig {
@@ -62,6 +62,7 @@ impl BenchmarkConfig {
             outputs_count * MIN_SECP_CELL_CAPACITY + estimate_fee(outputs_count);
         let (mut inputs, mut input_total_capacity) = (Vec::new(), 0);
         let mut cursor = 0;
+        let (mut sent, mut last_print_sent) = (0, Instant::now());
 
         while let Ok(utxo) = sender_utxo_rx.recv() {
             input_total_capacity += utxo.capacity();
@@ -85,6 +86,12 @@ impl BenchmarkConfig {
                 {
                     break;
                 }
+            }
+
+            sent += 1;
+            if last_print_sent.elapsed() > Duration::from_secs(60) {
+                last_print_sent = Instant::now();
+                info!("benched {} transactions", sent);
             }
 
             // Sleep every time sending transaction.
@@ -115,10 +122,18 @@ fn spawn_transaction_emitter(rpc: Jsonrpc) -> Sender<TransactionView> {
     spawn(move || {
         while let Ok(transaction) = receiver.recv() {
             let transaction: TransactionView = transaction;
-            while rpc
-                .send_transaction_result(transaction.data().into())
-                .is_err()
-            {
+            while let Err(err) = rpc.send_transaction_result(transaction.data().into()) {
+                if !err.to_string().contains("PoolIsFull")
+                    && !err.to_string().contains("TransactionPoolFull")
+                {
+                    error!(
+                        "rpc::send_transaction({}, {}, {:?}) error: {:?}",
+                        rpc.uri(),
+                        transaction,
+                        transaction,
+                        err
+                    );
+                }
                 sleep(Duration::from_secs(1));
             }
         }
