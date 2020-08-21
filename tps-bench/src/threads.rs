@@ -12,8 +12,8 @@ use crate::utxo::UTXO;
 // TODO move inside Account
 pub fn spawn_pull_utxos(config: &Config, account: &Account) -> (JoinHandle<()>, Receiver<UTXO>) {
     let net = Net::connect_all(config.rpc_urls());
-    let current_number = net.get_confirmed_tip_number();
-    let (matureds, unmatureds) = account.pull_until(&net, current_number);
+    let current_header = net.get_confirmed_tip_header();
+    let (matureds, unmatureds) = account.pull_until(&net, &current_header);
 
     let (utxo_sender, utxo_receiver) = bounded(2000);
     let account = account.clone();
@@ -21,7 +21,7 @@ pub fn spawn_pull_utxos(config: &Config, account: &Account) -> (JoinHandle<()>, 
         matureds.into_iter().for_each(|utxo| {
             utxo_sender.send(utxo).unwrap();
         });
-        account.pull_forever(net, current_number, unmatureds, utxo_sender);
+        account.pull_forever(net, current_header, unmatureds, utxo_sender);
     });
 
     (handler, utxo_receiver)

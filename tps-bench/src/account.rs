@@ -9,7 +9,7 @@ use crate::utxo::UTXO;
 use ckb_crypto::secp::Privkey;
 use ckb_hash::blake2b_256;
 use ckb_types::core;
-use ckb_types::core::{BlockNumber, ScriptHashType};
+use ckb_types::core::{BlockNumber, HeaderView, ScriptHashType};
 use ckb_types::packed::{Byte32, CellOutput, OutPoint, Script};
 use ckb_types::prelude::*;
 use ckb_types::H160;
@@ -50,25 +50,31 @@ impl Account {
 
     // TODO multiple net
     // Search the blockchain `[from_number, to_number]` and return the live utxos owned by `privkey`
+    //
+    // This process will not care about chain re-organize problem.
     pub fn pull_until(
         &self,
         rpc: &Jsonrpc,
-        until_number: BlockNumber,
+        until_header: &HeaderView,
     ) -> (Vec<UTXO>, Vec<(BlockNumber, UTXO)>) {
         info!(
             "[START] Account::pull_until({}, {})",
             rpc.uri(),
-            until_number
+            until_header.number()
         );
         let mut unmatureds: HashMap<OutPoint, (BlockNumber, CellOutput)> = HashMap::default();
         let mut utxoset: HashMap<OutPoint, CellOutput> = HashMap::default();
 
         let start_time = Instant::now();
         let mut last_print = Instant::now();
-        for number in 0..=until_number {
+        for number in 0..=until_header.number() {
             if last_print.elapsed() > Duration::from_secs(10) {
                 last_print = Instant::now();
-                info!("synchronization progress ({}/{}) ...", number, until_number);
+                info!(
+                    "synchronization progress ({}/{}) ...",
+                    number,
+                    until_header.number()
+                );
             }
 
             let block: core::BlockView = rpc
@@ -99,7 +105,7 @@ impl Account {
         info!(
             "[END] Account::pull_until({}, {}) matureds: {}, unmatureds: {}",
             rpc.uri(),
-            until_number,
+            until_header.number(),
             utxoset.len(),
             unmatureds.len()
         );
@@ -122,44 +128,46 @@ impl Account {
     pub fn pull_forever(
         &self,
         net: Net,
-        from_number: BlockNumber,
+        from_header: HeaderView,
         mut unmatureds: Vec<(BlockNumber, UTXO)>,
         utxo_sender: Sender<UTXO>,
     ) {
-        let mut number = from_number;
+        let mut current_header = from_header;
         loop {
-            let tip_number = net.get_confirmed_tip_number();
-            while number < tip_number {
-                number += 1;
+            if let Some(header) = net.get_fixed_header(current_header.number() + 1) {
+                // Chain has been re-organized! Rollback to the fixed point!
+                if header.parent_hash() != current_header.hash() {
+                    current_header = rollback_for_reorg(&net, &current_header);
+                    continue;
+                }
 
-                let block: core::BlockView = net
-                    .get_block_by_number(number)
-                    .expect("get_block_by_number")
-                    .into();
+                // net.get_block return None when re-organize
+                if let Some(block) = net.get_block(header.hash()) {
+                    current_header = header;
+                    let block: core::BlockView = block.into();
+                    let (matured, unmatured) = self.get_owned_utxos(&block);
+                    for utxo in matured {
+                        if utxo_sender.send(utxo).is_err() {
+                            return;
+                        }
+                    }
+                    while let Some(true) = unmatureds.first().map(|number_and_utxo| {
+                        is_matured(current_header.number(), number_and_utxo.0)
+                    }) {
+                        let (_, utxo) = unmatureds.remove(0);
+                        if utxo_sender.send(utxo).is_err() {
+                            return;
+                        }
+                    }
 
-                let (matured, unmatured) = self.get_owned_utxos(&block);
-                for utxo in matured {
-                    if utxo_sender.send(utxo).is_err() {
-                        return;
+                    // Collect the un-matured utxos in vector
+                    for utxo in unmatured {
+                        unmatureds.push((block.number(), utxo));
                     }
                 }
-                while let Some(true) = unmatureds
-                    .first()
-                    .map(|number_and_utxo| is_matured(tip_number, number_and_utxo.0))
-                {
-                    let (_, utxo) = unmatureds.remove(0);
-                    if utxo_sender.send(utxo).is_err() {
-                        return;
-                    }
-                }
-
-                // Collect the un-matured utxos in vector
-                for utxo in unmatured {
-                    unmatureds.push((block.number(), utxo));
-                }
+            } else {
+                sleep(Duration::from_millis(500));
             }
-
-            sleep(Duration::from_secs(1));
         }
     }
 
@@ -270,4 +278,15 @@ fn retry_send(rpc: &Jsonrpc, transaction: &core::TransactionView) -> Result<(), 
             }
         }
     }
+}
+
+fn rollback_for_reorg(net: &Net, old_header: &HeaderView) -> HeaderView {
+    // NOTE: We cannot find the exactly fixed point of old_header and new tip header based on ckb
+    // rpc interfaces.
+
+    let fixed_header = net
+        .get_header_by_number(old_header.number().saturating_sub(1000))
+        .expect(&format!("rollback_for_org(old_header={:?})", old_header))
+        .into();
+    fixed_header
 }
