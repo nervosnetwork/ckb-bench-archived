@@ -6,7 +6,7 @@ pub const BENCH_SUBCOMMAND: &str = "bench";
 #[derive(Debug, Clone)]
 pub enum CommandLine {
     MineMode(Config, u64 /* blocks */),
-    BenchMode(Config, bool),
+    BenchMode(Config),
 }
 
 pub fn commandline() -> CommandLine {
@@ -39,9 +39,6 @@ pub fn commandline() -> CommandLine {
                     clap::Arg::from_usage("--seconds <NUMBER> 'the seconds to bench, default and 0 represent forever'")
                         .required(false)
                         .validator(|s| s.parse::<u64>().map(|_| ()).map_err(|err| err.to_string())),
-                )
-                .arg(clap::Arg::from_usage("--get_best_send_delay 'get best send delay'")
-                        .required(false),
                 ),
         )
         .get_matches();
@@ -93,8 +90,7 @@ pub fn commandline() -> CommandLine {
                 .expect("clap arg option `validator` checked");
             let seconds = if seconds == 0 { None } else { Some(seconds) };
             let config = Config::new(spec, rpc_urls, seconds);
-            let get_best_send_delay = !matches.is_present("get_best_send_delay");
-            CommandLine::BenchMode(config, get_best_send_delay)
+            CommandLine::BenchMode(config)
         }
         (subcommand, options) => {
             prompt_and_exit!(

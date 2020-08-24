@@ -29,6 +29,7 @@ impl BenchmarkConfig {
         sender: &Account,
         recipient: &Account,
         sender_utxo_rx: &Receiver<UTXO>,
+        send_delay: u64,
     ) -> u64 {
         crate::net_monitor::wait_network_txpool_empty(&net);
 
@@ -36,7 +37,10 @@ impl BenchmarkConfig {
         info!(
             "[BENCHMARK] {}",
             json!({
-                "benchmark": self,
+                "benchmark": {
+                    "send_delay": send_delay,
+                    "transaction_type": self.transaction_type,
+                },
                 "current_confirmed_tip_number": current_confirmed_tip
             })
         );
@@ -95,11 +99,14 @@ impl BenchmarkConfig {
             }
 
             // Sleep every time sending transaction.
-            sleep(Duration::from_micros(self.send_delay));
+            sleep(Duration::from_micros(send_delay));
 
             if let Ok(metrics) = net_notifier.try_recv() {
                 let result = json!({
-                    "benchmark": self,
+                    "benchmark": {
+                    "send_delay": send_delay,
+                    "transaction_type": self.transaction_type,
+                    },
                     "metrics": metrics,
                 });
 
@@ -114,7 +121,41 @@ impl BenchmarkConfig {
                 return result["metrics"]["tps"].as_u64().expect("get tps");
             }
         }
-        return 0
+        0
+    }
+
+    pub fn find_best_bench(
+        &self,
+        net: &Net,
+        sender: &Account,
+        recipient: &Account,
+        sender_utxo_rx: &Receiver<UTXO>,
+    ) -> (u64, u64) {
+        let mut min_send_delay = self.send_delay;
+        let mut min_send_delay_tps =
+            self.bench(net, sender, recipient, sender_utxo_rx, self.send_delay);
+
+        let mut max_send_delay = 1_000_000 / min_send_delay_tps;
+        let mut max_send_delay_tps =
+            self.bench(net, sender, recipient, sender_utxo_rx, max_send_delay);
+
+        while min_send_delay < max_send_delay - 1 {
+            let mid_send_delay = (min_send_delay + max_send_delay) / 2;
+            let mid_send_delay_tps =
+                self.bench(net, sender, recipient, sender_utxo_rx, mid_send_delay);
+            if min_send_delay_tps < max_send_delay_tps {
+                min_send_delay = mid_send_delay;
+                min_send_delay_tps = mid_send_delay_tps;
+            } else {
+                max_send_delay = mid_send_delay;
+                max_send_delay_tps = mid_send_delay_tps
+            }
+        }
+        if min_send_delay_tps < max_send_delay_tps {
+            return (max_send_delay, max_send_delay_tps);
+        } else {
+            return (min_send_delay, min_send_delay_tps);
+        }
     }
 }
 

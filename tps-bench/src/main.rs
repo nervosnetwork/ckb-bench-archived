@@ -12,14 +12,14 @@ use std::fs::OpenOptions;
 use std::net::SocketAddr;
 
 use crate::account::Account;
+use crate::benchmark::BenchmarkConfig;
 use crate::command::{commandline, CommandLine};
-use crate::config::Config;
+use crate::config::{Config, TransactionType};
 use crate::global::{GENESIS_INFO, METRICS_RECORDER};
 use crate::miner::Miner;
 use crate::net::Net;
 use crate::rpc::Jsonrpc;
 use crate::threads::{spawn_miner, spawn_pull_utxos, spawn_transfer_utxos};
-use crate::benchmark::BenchmarkConfig;
 
 pub mod benchmark;
 pub mod global;
@@ -48,7 +48,7 @@ fn main() {
             let miner = Miner::new(miner_config, rpc_urls);
             miner.generate_blocks(blocks);
         }
-        CommandLine::BenchMode(config, get_best_send_delay) => {
+        CommandLine::BenchMode(config) => {
             info!("\nTPSBench start with configuration: {}", json!(config));
             init_logger(&config);
             init_metrics_recorder(&config);
@@ -75,55 +75,26 @@ fn main() {
 
             // Benchmark
             let net = Net::connect_all(config.rpc_urls());
-            if !get_best_send_delay {
-                for benchmark in config.benchmarks.iter() {
-                    benchmark.bench(&net, &bencher, &bencher, &bencher_utxo_r);
-                }
-            } else {
-                let transaction_type = config.benchmarks[0].transaction_type;
-                let mut lowest_send_delay = 10;
-                let mut highest_send_delay = 10000;
-                for benchmark in config.benchmarks.iter() {
-                    if benchmark.send_delay > highest_send_delay {
-                        highest_send_delay = benchmark.send_delay;
-                    } else if benchmark.send_delay < lowest_send_delay {
-                        lowest_send_delay = benchmark.send_delay;
-                    }
-                }
-                let low = BenchmarkConfig{
-                    transaction_type: transaction_type,
-                    send_delay: lowest_send_delay,
-                };
-                let high = BenchmarkConfig{
-                    transaction_type: transaction_type,
-                    send_delay: highest_send_delay,
-                };
-                let mut low_tps = low.bench(&net, &bencher, &bencher, &bencher_utxo_r);
-                let mut high_tps = high.bench(&net, &bencher, &bencher, &bencher_utxo_r);
-                let mut test = [low, high];
-                println!("send_delay: {}, tps: {}", lowest_send_delay, low_tps);
-                println!("send delay: {}, tps: {}", highest_send_delay, high_tps);
-                while test[0].send_delay < test[1].send_delay - 1 {
-                    let mid = BenchmarkConfig{
-                        transaction_type: transaction_type,
-                        send_delay: (test[0].send_delay + test[1].send_delay) / 2,
-                    };
-                    let mid_tps = mid.bench(&net, &bencher, &bencher, &bencher_utxo_r);
-                    println!("send_dealy: {}, tps: {}", mid.send_delay, mid_tps);
-                    if low_tps < high_tps {
-                        test[0] = mid;
-                        low_tps = mid_tps;
-                    } else {
-                        test[1] = mid;
-                        high_tps = mid_tps;
-                    }
-                }
-                if low_tps < high_tps {
-                    println!("\nbest send delay: {}, tps: {}", test[1].send_delay, high_tps);
-                } else {
-                    println!("\nbest send delay: {}, tps: {}", test[0].send_delay, low_tps);
-                }
+            for benchmark in config.benchmarks.iter() {
+                benchmark.bench(
+                    &net,
+                    &bencher,
+                    &bencher,
+                    &bencher_utxo_r,
+                    benchmark.send_delay,
+                );
             }
+
+            let benchmark = BenchmarkConfig {
+                transaction_type: TransactionType::In2Out2,
+                send_delay: 0,
+            };
+            let (best_send_delay, best_tps) =
+                benchmark.find_best_bench(&net, &bencher, &bencher, &bencher_utxo_r);
+            info!(
+                "Best send_delay: {}, best tps: {}",
+                best_send_delay, best_tps
+            );
         }
     }
 }
