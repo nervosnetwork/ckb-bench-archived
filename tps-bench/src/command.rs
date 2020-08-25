@@ -14,7 +14,11 @@ pub fn commandline() -> CommandLine {
     let matches = clap::app_from_crate!()
         .subcommand(
             clap::SubCommand::with_name(MINE_SUBCOMMAND)
-                .about("start miner and exit after generating corresponding blocks")
+                .about(
+                    "Start miner and exit after generating corresponding blocks\n\
+                     Example:\n\
+                     tps-bench mine -s dev --rpc-urls http://127.0.0.1:8114 -b 100",
+                )
                 .arg(clap::Arg::from_usage( "-s, --spec <FILE> 'the spec: staging, dev, or path to spec file'", ))
                 .arg(clap::Arg::from_usage("--rpc-urls <ENDPOINTS> 'the ckb rpc endpoints'")
                     .required(true)
@@ -28,17 +32,16 @@ pub fn commandline() -> CommandLine {
         )
         .subcommand(
             clap::SubCommand::with_name(BENCH_SUBCOMMAND)
-                .about("start bencher and continuously send transactions for the duration")
+                .about(
+                    "Run TPS bencher and caculate tps-bench in a specify blocks window\n\
+                    Example:\n\
+                    tps-bench bench -s dev --rpc-urls http://127.0.0.1:8114",
+                )
                 .arg(clap::Arg::from_usage( "-s, --spec <FILE> 'the spec: staging, dev, or path to spec file'", ))
                 .arg(clap::Arg::from_usage("--rpc-urls <ENDPOINTS> 'the ckb rpc endpoints'")
                     .required(true)
                     .multiple(true)
                     .validator(|s| { Url::parse(&s).map(|_|()).map_err(|err|err.to_string()) })
-                )
-                .arg(
-                    clap::Arg::from_usage("--seconds <NUMBER> 'the seconds to bench, default and 0 represent forever'")
-                        .required(false)
-                        .validator(|s| s.parse::<u64>().map(|_| ()).map_err(|err| err.to_string())),
                 ),
         )
         .get_matches();
@@ -60,7 +63,7 @@ pub fn commandline() -> CommandLine {
                 .into_iter()
                 .map(|str| Url::parse(str).expect("clap arg option `validator` checked"))
                 .collect::<Vec<_>>();
-            let config = Config::new(spec, rpc_urls, None);
+            let config = Config::new(spec, rpc_urls);
             let blocks = options
                 .value_of("blocks")
                 .expect("clap arg option `required(true)` checked")
@@ -84,12 +87,7 @@ pub fn commandline() -> CommandLine {
                 .into_iter()
                 .map(|str| Url::parse(str).expect("clap arg option `validator` checked"))
                 .collect::<Vec<_>>();
-            let str = options.value_of("seconds").unwrap_or("0");
-            let seconds = str
-                .parse::<u64>()
-                .expect("clap arg option `validator` checked");
-            let seconds = if seconds == 0 { None } else { Some(seconds) };
-            let config = Config::new(spec, rpc_urls, seconds);
+            let config = Config::new(spec, rpc_urls);
             CommandLine::BenchMode(config)
         }
         (subcommand, options) => {

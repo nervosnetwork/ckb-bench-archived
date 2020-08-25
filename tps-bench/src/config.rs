@@ -15,7 +15,6 @@ pub const DEV_SPEC: &str = include_str!("../specs/dev.toml");
 pub struct Config {
     spec: Spec,
     rpc_urls: Vec<Url>,
-    seconds: Option<u64>, // The last time of bench process
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -53,13 +52,12 @@ impl Deref for Config {
 }
 
 impl Config {
-    pub fn new(spec: Spec, mut rpc_urls: Vec<Url>, seconds: Option<u64>) -> Self {
+    pub fn new(spec: Spec, rpc_urls: Vec<Url>) -> Self {
         rpc_urls.sort();
         rpc_urls.dedup();
         Self {
             spec,
             rpc_urls,
-            seconds,
         }
     }
 
@@ -69,10 +67,6 @@ impl Config {
 
     pub fn spec(&self) -> &Spec {
         &self.spec
-    }
-
-    pub fn seconds(&self) -> Option<u64> {
-        self.seconds
     }
 }
 
