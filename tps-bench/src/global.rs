@@ -1,4 +1,5 @@
 use crate::genesis_info::GenesisInfo;
+use crate::net_monitor::MethodToEvalNetStable;
 
 use ckb_types::core::DepType;
 use ckb_types::packed::{Byte32, CellDep, OutPoint};
@@ -34,5 +35,7 @@ lazy_static! {
     pub static ref GENESIS_INFO: Mutex<GenesisInfo> = Mutex::new(GenesisInfo::default());
     pub static ref CELLBASE_MATURITY: Mutex<u64> = Mutex::new(1);
     pub static ref CONFIRMATION_BLOCKS: Mutex<u64> = Mutex::new(0);
+    pub static ref METHOD_TO_EVAL_NET_STABLE: Mutex<MethodToEvalNetStable> =
+        Mutex::new(MethodToEvalNetStable::default());
     pub static ref METRICS_RECORDER: Mutex<Option<File>> = Mutex::new(None);
 }

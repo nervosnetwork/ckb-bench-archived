@@ -1,7 +1,8 @@
-use crate::global::{CELLBASE_MATURITY, CONFIRMATION_BLOCKS};
+use crate::global::{CELLBASE_MATURITY, CONFIRMATION_BLOCKS, METHOD_TO_EVAL_NET_STABLE};
 
 use crate::benchmark::BenchmarkConfig;
 use crate::miner::MinerConfig;
+use crate::net_monitor::MethodToEvalNetStable;
 use serde_derive::{Deserialize, Serialize};
 use std::fs::create_dir_all;
 use std::ops::Deref;
@@ -30,6 +31,8 @@ pub struct Spec {
 
     pub consensus_cellbase_maturity: u64,
     pub confirmation_blocks: u64,
+
+    pub method_to_eval_network_stable: MethodToEvalNetStable,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy)]
@@ -86,6 +89,7 @@ impl Spec {
         create_dir_all(&spec.data_dir).unwrap();
         *CELLBASE_MATURITY.lock().unwrap() = spec.consensus_cellbase_maturity;
         *CONFIRMATION_BLOCKS.lock().unwrap() = spec.confirmation_blocks;
+        *METHOD_TO_EVAL_NET_STABLE.lock().unwrap() = spec.method_to_eval_network_stable;
 
         Ok(spec)
     }

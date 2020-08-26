@@ -1,3 +1,4 @@
+use crate::global::METHOD_TO_EVAL_NET_STABLE;
 use crate::net::Net;
 use ckb_types::core::BlockView;
 use log::info;
@@ -8,23 +9,22 @@ use std::collections::VecDeque;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
-enum MethodToEvalNetStable {
+#[derive(Deserialize, Serialize, Debug, Clone, Copy)]
+pub enum MethodToEvalNetStable {
     #[allow(dead_code)]
     RecentBlocktxnsNearly { window: u64, margin: u64 },
     #[allow(dead_code)]
     CustomBlocksElapsed { warmup: u64, window: u64 },
 }
 
-// const METHOD_TO_EVAL_NET_STABLE: MethodToEvalNetStable =
-//     MethodToEvalNetStable::RecentBlocktxnsNearly {
-//         window: 21,
-//         margin: 10,
-//     };
-const METHOD_TO_EVAL_NET_STABLE: MethodToEvalNetStable =
-    MethodToEvalNetStable::CustomBlocksElapsed {
-        warmup: 20,
-        window: 21,
-    };
+impl Default for MethodToEvalNetStable {
+    fn default() -> Self {
+        Self::CustomBlocksElapsed {
+            warmup: 20,
+            window: 21,
+        }
+    }
+}
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Metrics {
@@ -36,7 +36,8 @@ pub struct Metrics {
 }
 
 pub fn wait_network_stabled(net: &Net) -> Metrics {
-    match METHOD_TO_EVAL_NET_STABLE {
+    let method_to_eval_net_stable = *METHOD_TO_EVAL_NET_STABLE.lock().unwrap();
+    match method_to_eval_net_stable {
         MethodToEvalNetStable::RecentBlocktxnsNearly { window, margin } => {
             wait_recent_blocktxns_nearly(net, window, margin)
         }
