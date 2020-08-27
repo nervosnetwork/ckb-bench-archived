@@ -81,4 +81,12 @@ impl Net {
         };
         None
     }
+
+    pub fn get_network_nodes(&self) -> u64 {
+        self.endpoints[0].get_peers().len() as u64 + 1 as u64
+    }
+
+    pub fn get_bench_nodes(&self) -> u64 {
+        self.endpoints.len() as u64
+    }
 }

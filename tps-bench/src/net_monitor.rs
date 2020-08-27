@@ -33,6 +33,8 @@ pub struct Metrics {
     average_block_transactions: u64,
     start_block_number: u64,
     end_block_number: u64,
+    network_nodes: u64,
+    bench_nodes: u64,
 }
 
 pub fn wait_network_stabled(net: &Net) -> Metrics {
@@ -90,7 +92,7 @@ fn wait_custom_blocks_elapsed(net: &Net, window: u64, warmup: u64) -> Metrics {
         .map(|number| net.get_block_by_number(number).unwrap())
         .map(|block| block.into())
         .collect::<Vec<_>>();
-    Metrics::eval_blocks(blocks)
+    Metrics::eval_blocks(net, blocks)
 }
 
 fn wait_recent_blocktxns_nearly(net: &Net, window: u64, margin: u64) -> Metrics {
@@ -114,7 +116,7 @@ fn wait_recent_blocktxns_nearly(net: &Net, window: u64, margin: u64) -> Metrics 
         }
 
         if queue.len() >= window as usize {
-            let metrics = Metrics::eval_blocks(queue.iter().cloned().collect());
+            let metrics = Metrics::eval_blocks(net, queue.iter().cloned().collect());
             info!("[metrics] {}", json!(metrics));
 
             let mintxns = queue.iter().map(|b| b.transactions().len()).min().unwrap();
@@ -137,7 +139,9 @@ fn is_network_txpool_empty(net: &Net) -> bool {
 }
 
 impl Metrics {
-    fn eval_blocks(blocks: Vec<BlockView>) -> Self {
+    fn eval_blocks(net: &Net, blocks: Vec<BlockView>) -> Self {
+        let network_nodes = net.get_network_nodes();
+        let bench_nodes = net.get_bench_nodes();
         let totaltxns: usize = blocks.iter().map(|block| block.transactions().len()).sum();
         let front = blocks.first().unwrap();
         let back = blocks.last().unwrap();
@@ -151,6 +155,8 @@ impl Metrics {
             average_block_transactions,
             start_block_number: front.number(),
             end_block_number: back.number(),
+            network_nodes,
+            bench_nodes,
         }
     }
 }

@@ -42,7 +42,7 @@ pub enum TransactionType {
     In3Out3,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone, Eq, Ord, PartialOrd, PartialEq)]
 pub struct Url(#[serde(with = "url_serde")] pub url::Url);
 
 impl Deref for Config {
@@ -53,7 +53,9 @@ impl Deref for Config {
 }
 
 impl Config {
-    pub fn new(spec: Spec, rpc_urls: Vec<Url>, seconds: Option<u64>) -> Self {
+    pub fn new(spec: Spec, mut rpc_urls: Vec<Url>, seconds: Option<u64>) -> Self {
+        rpc_urls.sort();
+        rpc_urls.dedup();
         Self {
             spec,
             rpc_urls,
