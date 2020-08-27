@@ -12,8 +12,9 @@ use std::fs::OpenOptions;
 use std::net::SocketAddr;
 
 use crate::account::Account;
+use crate::benchmark::BenchmarkConfig;
 use crate::command::{commandline, CommandLine};
-use crate::config::Config;
+use crate::config::{Config, TransactionType};
 use crate::global::{GENESIS_INFO, METRICS_RECORDER};
 use crate::miner::Miner;
 use crate::net::Net;
@@ -75,8 +76,25 @@ fn main() {
             // Benchmark
             let net = Net::connect_all(config.rpc_urls());
             for benchmark in config.benchmarks.iter() {
-                benchmark.bench(&net, &bencher, &bencher, &bencher_utxo_r);
+                benchmark.bench(
+                    &net,
+                    &bencher,
+                    &bencher,
+                    &bencher_utxo_r,
+                    benchmark.send_delay,
+                );
             }
+
+            let benchmark = BenchmarkConfig {
+                transaction_type: TransactionType::In2Out2,
+                send_delay: 0,
+            };
+            let (best_send_delay, best_tps) =
+                benchmark.find_best_bench(&net, &bencher, &bencher, &bencher_utxo_r);
+            info!(
+                "Best send_delay: {}, best tps: {}",
+                best_send_delay, best_tps
+            );
         }
     }
 }

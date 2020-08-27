@@ -17,10 +17,10 @@ confirmation_blocks = 6
 
 # Benchmark
 ## - transaction_type :: "In1Out1" | "In2Out2" | "In3Out3"
-## - send_delay :: millisecond
+## - send_delay :: microsecond
 [[benchmarks]]
 transaction_type = "In2Out2"
-send_delay = 10
+send_delay = 10000
 [[benchmarks]]
 transaction_type = "In2Out2"
-send_delay = 1
+send_delay = 1000
