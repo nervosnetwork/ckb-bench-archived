@@ -18,7 +18,7 @@ method_to_eval_network_stable = { CustomBlocksElapsed = { warmup = 20, window = 
 # Dummy Miner
 ## - block_time :: millis
 [miner]
-private_key   = "8c296482b9b763e8be974058272f377462f2975b94454dabb112de0f135e2064"
+private_key = "8c296482b9b763e8be974058272f377462f2975b94454dabb112de0f135e2064"
 block_time = 1000
 
 # Benchmark
