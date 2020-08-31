@@ -52,7 +52,7 @@ impl Deref for Config {
 }
 
 impl Config {
-    pub fn new(spec: Spec, rpc_urls: Vec<Url>) -> Self {
+    pub fn new(spec: Spec, mut rpc_urls: Vec<Url>) -> Self {
         rpc_urls.sort();
         rpc_urls.dedup();
         Self {
