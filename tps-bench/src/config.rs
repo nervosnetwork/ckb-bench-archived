@@ -22,7 +22,7 @@ pub struct Spec {
     pub data_dir: String,
     pub bencher_private_key: String,
 
-    pub miner: Option<MinerConfig>,
+    pub miner: MinerConfig,
     pub benchmarks: Vec<BenchmarkConfig>,
 
     #[serde(default)]
@@ -30,6 +30,7 @@ pub struct Spec {
 
     pub consensus_cellbase_maturity: u64,
     pub confirmation_blocks: u64,
+    pub ensure_matured_capacity_greater_than: u64,
 
     pub method_to_eval_network_stable: MethodToEvalNetStable,
 }
@@ -55,10 +56,7 @@ impl Config {
     pub fn new(spec: Spec, mut rpc_urls: Vec<Url>) -> Self {
         rpc_urls.sort();
         rpc_urls.dedup();
-        Self {
-            spec,
-            rpc_urls,
-        }
+        Self { spec, rpc_urls }
     }
 
     pub fn rpc_urls(&self) -> Vec<&str> {

@@ -19,13 +19,19 @@ pub fn commandline() -> CommandLine {
                      Example:\n\
                      tps-bench mine -s dev --rpc-urls http://127.0.0.1:8114 -b 100",
                 )
-                .arg(clap::Arg::from_usage( "-s, --spec <FILE> 'the spec: staging, dev, or path to spec file'", ))
-                .arg(clap::Arg::from_usage("--rpc-urls <ENDPOINTS> 'the ckb rpc endpoints'")
-                    .required(true)
-                    .multiple(true)
-                    .validator(|s| { Url::parse(&s).map(|_|()).map_err(|err|err.to_string()) })
+                .arg(clap::Arg::from_usage(
+                    "-s, --spec <FILE> 'the spec: staging, dev, or path to spec file'",
+                ))
+                .arg(
+                    clap::Arg::from_usage("--rpc-urls <ENDPOINTS> 'the ckb rpc endpoints'")
+                        .required(true)
+                        .multiple(true)
+                        .validator(|s| Url::parse(&s).map(|_| ()).map_err(|err| err.to_string())),
                 )
-                .arg( clap::Arg::from_usage( "-b --blocks <NUMBER> 'the number of blocks to generate'", )
+                .arg(
+                    clap::Arg::from_usage(
+                        "-b --blocks <NUMBER> 'the number of blocks to generate'",
+                    )
                     .required(true)
                     .validator(|s| s.parse::<u64>().map(|_| ()).map_err(|err| err.to_string())),
                 ),
@@ -37,11 +43,14 @@ pub fn commandline() -> CommandLine {
                     Example:\n\
                     tps-bench bench -s dev --rpc-urls http://127.0.0.1:8114",
                 )
-                .arg(clap::Arg::from_usage( "-s, --spec <FILE> 'the spec: staging, dev, or path to spec file'", ))
-                .arg(clap::Arg::from_usage("--rpc-urls <ENDPOINTS> 'the ckb rpc endpoints'")
-                    .required(true)
-                    .multiple(true)
-                    .validator(|s| { Url::parse(&s).map(|_|()).map_err(|err|err.to_string()) })
+                .arg(clap::Arg::from_usage(
+                    "-s, --spec <FILE> 'the spec: staging, dev, or path to spec file'",
+                ))
+                .arg(
+                    clap::Arg::from_usage("--rpc-urls <ENDPOINTS> 'the ckb rpc endpoints'")
+                        .required(true)
+                        .multiple(true)
+                        .validator(|s| Url::parse(&s).map(|_| ()).map_err(|err| err.to_string())),
                 ),
         )
         .get_matches();

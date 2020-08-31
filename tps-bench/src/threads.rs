@@ -1,5 +1,8 @@
+use ckb_types::packed::{CellOutput, OutPoint};
+use ckb_types::prelude::*;
 use crossbeam_channel::{bounded, Receiver};
 use log::info;
+use std::collections::HashMap;
 use std::thread::{sleep, spawn, JoinHandle};
 
 use crate::account::Account;
@@ -10,11 +13,25 @@ use crate::transfer::{construct_unsigned_transaction, sign_transaction};
 use crate::utxo::UTXO;
 
 // TODO move inside Account
-pub fn spawn_pull_utxos(config: &Config, account: &Account) -> (JoinHandle<()>, Receiver<UTXO>) {
+pub fn spawn_pull_utxos(
+    config: &Config,
+    account: &Account,
+    miner: &Miner,
+) -> (JoinHandle<()>, Receiver<UTXO>) {
     let net = Net::connect_all(config.rpc_urls());
     let current_header = net.get_confirmed_tip_header();
-    let (matureds, unmatureds) = account.pull_until(&net, &current_header);
+    let (mut utxoset, mut unmatureds) = account.pull_until(&net, &current_header);
 
+    let mut total_capacity = get_total_capacity_from_utxo(&utxoset);
+
+    while total_capacity < config.ensure_matured_capacity_greater_than {
+        if let Some(block_number) = miner.generate_block() {
+            account.pull_from_block_number(&net, block_number, &mut utxoset, &mut unmatureds);
+            total_capacity = get_total_capacity_from_utxo(&utxoset);
+        }
+    }
+
+    let (matureds, unmatureds) = account.construct_utxo_vec(utxoset, unmatureds);
     let (utxo_sender, utxo_receiver) = bounded(2000);
     let account = account.clone();
     let handler = spawn(move || {
@@ -54,4 +71,11 @@ pub fn spawn_miner(miner: &Miner) {
         sleep(miner.block_time);
         miner.generate_block();
     });
+}
+
+fn get_total_capacity_from_utxo(utxoset: &HashMap<OutPoint, CellOutput>) -> u64 {
+    utxoset
+        .iter()
+        .map(|(_, output)| -> u64 { output.capacity().unpack() })
+        .sum()
 }
