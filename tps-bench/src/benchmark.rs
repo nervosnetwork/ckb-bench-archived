@@ -130,7 +130,7 @@ impl BenchmarkConfig {
         sender: &Account,
         recipient: &Account,
         sender_utxo_rx: &Receiver<UTXO>,
-    ) -> (u64, u64) {
+    ) -> u64 {
         let mut min_send_delay = self.send_delay;
         let mut min_send_delay_tps =
             self.bench(net, sender, recipient, sender_utxo_rx, self.send_delay);
@@ -139,10 +139,15 @@ impl BenchmarkConfig {
         let mut max_send_delay_tps =
             self.bench(net, sender, recipient, sender_utxo_rx, max_send_delay);
 
+        let mut nearly_send_delay_tps: Vec<u64> = Vec::new();
+
         while min_send_delay < max_send_delay - 1 {
             let mid_send_delay = (min_send_delay + max_send_delay) / 2;
             let mid_send_delay_tps =
                 self.bench(net, sender, recipient, sender_utxo_rx, mid_send_delay);
+            if max_send_delay - min_send_delay < 200 {
+                nearly_send_delay_tps.push(mid_send_delay_tps);
+            }
             if min_send_delay_tps < max_send_delay_tps {
                 min_send_delay = mid_send_delay;
                 min_send_delay_tps = mid_send_delay_tps;
@@ -151,11 +156,7 @@ impl BenchmarkConfig {
                 max_send_delay_tps = mid_send_delay_tps
             }
         }
-        if min_send_delay_tps < max_send_delay_tps {
-            return (max_send_delay, max_send_delay_tps);
-        } else {
-            return (min_send_delay, min_send_delay_tps);
-        }
+        nearly_send_delay_tps.iter().sum::<u64>() / nearly_send_delay_tps.len() as u64
     }
 }
 
