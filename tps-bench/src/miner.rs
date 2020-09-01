@@ -59,13 +59,18 @@ impl Miner {
         // Ensure the miner is matcher with block_assembler configured in ckb
         let configured_miner_lock_script = self.lock_script();
         let block_assembler_lock_script = {
-            let cellbase: Transaction = self
-                .net
-                .get_block_template(None, None, None)
-                .cellbase
-                .data
-                .into();
-            cellbase.into_view().output(0).unwrap().lock()
+            loop {
+                let cellbase: Transaction = self
+                    .net
+                    .get_block_template(None, None, None)
+                    .cellbase
+                    .data
+                    .into();
+                if let Some(output) = cellbase.into_view().output(0) {
+                    break output.lock();
+                }
+                self.generate_block();
+            }
         };
         assert_eq!(configured_miner_lock_script, block_assembler_lock_script);
     }
