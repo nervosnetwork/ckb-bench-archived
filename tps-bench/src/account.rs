@@ -9,7 +9,7 @@ use crate::utxo::UTXO;
 use ckb_crypto::secp::Privkey;
 use ckb_hash::blake2b_256;
 use ckb_types::core;
-use ckb_types::core::{BlockNumber, HeaderView, ScriptHashType};
+use ckb_types::core::{BlockNumber, BlockView, HeaderView, ScriptHashType};
 use ckb_types::packed::{Byte32, CellOutput, OutPoint, Script};
 use ckb_types::prelude::*;
 use ckb_types::H160;
@@ -56,7 +56,10 @@ impl Account {
         &self,
         rpc: &Jsonrpc,
         until_header: &HeaderView,
-    ) -> (Vec<UTXO>, Vec<(BlockNumber, UTXO)>) {
+    ) -> (
+        HashMap<OutPoint, CellOutput>,
+        HashMap<OutPoint, (BlockNumber, CellOutput)>,
+    ) {
         info!(
             "[START] Account::pull_until({}, {})",
             rpc.uri(),
@@ -77,7 +80,7 @@ impl Account {
                 );
             }
 
-            let block: core::BlockView = rpc
+            let block: BlockView = rpc
                 .get_block_by_number(number)
                 .expect("get_block_by_number")
                 .into();
@@ -87,18 +90,23 @@ impl Account {
             for utxo in matured {
                 utxoset.insert(utxo.out_point().clone(), utxo.output().clone());
             }
+
+            for utxo in unmatured {
+                if is_matured(until_header.number(), number) {
+                    utxoset.insert(utxo.out_point().clone(), utxo.output().clone());
+                } else {
+                    unmatureds.insert(
+                        utxo.out_point().clone(),
+                        (block.number(), utxo.output().clone()),
+                    );
+                }
+            }
             // Remove spent UTXOs
             for transaction in block.transactions() {
                 for input_out_point in transaction.input_pts_iter() {
                     utxoset.remove(&input_out_point);
                     unmatureds.remove(&input_out_point);
                 }
-            }
-            for utxo in unmatured {
-                unmatureds.insert(
-                    utxo.out_point().clone(),
-                    (block.number(), utxo.output().clone()),
-                );
             }
         }
         info!("complete synchronization, took {:?}", start_time.elapsed());
@@ -110,6 +118,55 @@ impl Account {
             unmatureds.len()
         );
 
+        (utxoset, unmatureds)
+    }
+
+    pub fn pull_from_block_number(
+        &self,
+        net: &Net,
+        block_number: BlockNumber,
+        utxoset: &mut HashMap<OutPoint, CellOutput>,
+        unmatureds: &mut HashMap<OutPoint, (BlockNumber, CellOutput)>,
+    ) {
+        let block: BlockView = net.get_block_by_number(block_number).unwrap().into();
+        let (matured, unmatured) = self.get_owned_utxos(&block);
+        for utxo in matured {
+            utxoset.insert(utxo.out_point().clone(), utxo.output().clone());
+        }
+        for tx in block.transactions() {
+            for input_output_point in tx.input_pts_iter() {
+                utxoset.remove(&input_output_point);
+                unmatureds.remove(&input_output_point);
+            }
+        }
+        for utxo in unmatured {
+            unmatureds.insert(
+                utxo.out_point().clone(),
+                (block_number, utxo.output().clone()),
+            );
+        }
+        let mut unmatured_utxo: Vec<_> = unmatureds
+            .into_iter()
+            .map(|(out_point, (number, output))| {
+                (number.clone(), UTXO::new(output.clone(), out_point.clone()))
+            })
+            .collect();
+        unmatured_utxo.sort_by_key(|(number, _)| number.clone());
+        while let Some(true) = unmatured_utxo
+            .first()
+            .map(|number_and_utxo| is_matured(block_number, number_and_utxo.0))
+        {
+            let (_, utxo) = unmatured_utxo.remove(0);
+            utxoset.insert(utxo.out_point().clone(), utxo.output().clone());
+            unmatureds.remove(utxo.out_point());
+        }
+    }
+
+    pub fn construct_utxo_vec(
+        &self,
+        utxoset: HashMap<OutPoint, CellOutput>,
+        unmatureds: HashMap<OutPoint, (BlockNumber, CellOutput)>,
+    ) -> (Vec<UTXO>, Vec<(BlockNumber, UTXO)>) {
         let mut unmatureds: Vec<_> = unmatureds
             .into_iter()
             .map(|(out_point, (number, output))| (number, UTXO::new(output, out_point)))
@@ -144,7 +201,7 @@ impl Account {
                 // net.get_block return None when re-organize
                 if let Some(block) = net.get_block(header.hash()) {
                     current_header = header;
-                    let block: core::BlockView = block.into();
+                    let block: BlockView = block.into();
                     let (matured, unmatured) = self.get_owned_utxos(&block);
                     for utxo in matured {
                         if utxo_sender.send(utxo).is_err() {
@@ -231,7 +288,7 @@ impl Account {
         &self.privkey
     }
 
-    fn get_owned_utxos(&self, block: &core::BlockView) -> (Vec<UTXO>, Vec<UTXO>) {
+    pub fn get_owned_utxos(&self, block: &BlockView) -> (Vec<UTXO>, Vec<UTXO>) {
         let lock_script = self.lock_script();
         let (mut unmatured, mut matured) = (Vec::new(), Vec::new());
         for (tx_index, transaction) in block.transactions().into_iter().enumerate() {

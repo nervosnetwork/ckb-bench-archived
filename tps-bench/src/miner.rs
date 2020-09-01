@@ -33,7 +33,7 @@ impl Miner {
     }
 
     // TODO multiple miners
-    pub fn generate_block(&self) {
+    pub fn generate_block(&self) -> Option<u64> {
         let template = self.net.get_block_template(None, None, None);
         let work_id = template.work_id.value();
         let block_number = template.number.value();
@@ -41,14 +41,18 @@ impl Miner {
 
         if let Some(block_hash) = self.net.submit_block(work_id.to_string(), block.into()) {
             info!("submit block  #{} {:#x}", block_number, block_hash);
+            Some(block_number)
         } else {
             error!("submit block  #{} None", block_number);
+            None
         }
     }
 
     /// Run a miner to generate the given number of blocks.
     pub fn generate_blocks(&self, n: u64) {
-        (0..n).for_each(|_| self.generate_block());
+        (0..n).for_each(|_| {
+            self.generate_block();
+        });
     }
 
     pub fn assert_block_assembler(&self) {

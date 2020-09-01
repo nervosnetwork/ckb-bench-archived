@@ -43,7 +43,7 @@ fn main() {
             init_logger(&config);
             init_global_genesis_info(&config);
 
-            let miner_config = config.miner.as_ref().expect("config [miner] on mine-mode");
+            let miner_config = &config.miner;
             let rpc_urls = config.rpc_urls();
             let miner = Miner::new(miner_config, rpc_urls);
             miner.generate_blocks(blocks);
@@ -55,26 +55,27 @@ fn main() {
             init_metrics(&config);
             init_global_genesis_info(&config);
 
+            let rpc_urls = config.rpc_urls();
+            let net = Net::connect_all(config.rpc_urls());
+
             // Bencher
             let bencher = Account::new(&config.bencher_private_key);
-            let (_, bencher_utxo_r) = spawn_pull_utxos(&config, &bencher);
 
             // Miner
-            if let Some(ref miner_config) = config.miner {
-                let rpc_urls = config.rpc_urls();
-                let miner = Miner::new(miner_config, rpc_urls);
+            let miner_config = &config.miner;
+            let miner = Miner::new(&miner_config, rpc_urls);
+            let _ = spawn_miner(&miner);
 
-                let _ = spawn_miner(&miner);
-
-                // Transfer all miner's utxo to bencher
-                if miner.lock_script() != bencher.lock_script() {
-                    let (_, miner_utxo_r) = spawn_pull_utxos(&config, &miner);
-                    spawn_transfer_utxos(&config, &miner, &bencher, miner_utxo_r);
-                }
+            // Transfer all miner's utxo to bencher
+            if miner.lock_script() != bencher.lock_script() {
+                let (_, miner_utxo_r) = spawn_pull_utxos(&config, &miner, &miner);
+                spawn_transfer_utxos(&config, &miner, &bencher, miner_utxo_r);
             }
 
+            let (_, bencher_utxo_r) = spawn_pull_utxos(&config, &bencher, &miner);
+
+
             // Benchmark
-            let net = Net::connect_all(config.rpc_urls());
             for benchmark in config.benchmarks.iter() {
                 benchmark.bench(
                     &net,
