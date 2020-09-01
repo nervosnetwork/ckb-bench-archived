@@ -74,7 +74,6 @@ fn main() {
 
             let (_, bencher_utxo_r) = spawn_pull_utxos(&config, &bencher, &miner);
 
-
             // Benchmark
             for benchmark in config.benchmarks.iter() {
                 benchmark.bench(
@@ -96,6 +95,7 @@ fn main() {
                 "Best send_delay: {}, best tps: {}",
                 best_send_delay, best_tps
             );
+            println!("TPS: {}", best_tps);
         }
     }
 }
