@@ -69,7 +69,6 @@ pub fn commandline() -> CommandLine {
             let rpc_urls = options
                 .values_of("rpc-urls")
                 .expect("clap arg option `required(true)` checked")
-                .into_iter()
                 .map(|str| Url::parse(str).expect("clap arg option `validator` checked"))
                 .collect::<Vec<_>>();
             let config = Config::new(spec, rpc_urls);
@@ -93,7 +92,6 @@ pub fn commandline() -> CommandLine {
             let rpc_urls = options
                 .values_of("rpc-urls")
                 .expect("clap arg option `required(true)` checked")
-                .into_iter()
                 .map(|str| Url::parse(str).expect("clap arg option `validator` checked"))
                 .collect::<Vec<_>>();
             let config = Config::new(spec, rpc_urls);

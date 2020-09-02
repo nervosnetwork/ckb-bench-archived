@@ -1,3 +1,4 @@
+#![allow(clippy::mutable_key_type)]
 use ckb_types::packed::{CellOutput, OutPoint};
 use ckb_types::prelude::*;
 use crossbeam_channel::{bounded, Receiver};
