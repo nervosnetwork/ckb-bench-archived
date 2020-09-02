@@ -89,12 +89,8 @@ fn main() {
                 transaction_type: TransactionType::In2Out2,
                 send_delay: 0,
             };
-            let (best_send_delay, best_tps) =
-                benchmark.find_best_bench(&net, &bencher, &bencher, &bencher_utxo_r);
-            info!(
-                "Best send_delay: {}, best tps: {}",
-                best_send_delay, best_tps
-            );
+            let best_tps = benchmark.find_best_bench(&net, &bencher, &bencher, &bencher_utxo_r);
+            info!("Best TPS: {}", best_tps);
             println!("TPS: {}", best_tps);
         }
     }
