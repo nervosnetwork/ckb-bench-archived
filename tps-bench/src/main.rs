@@ -64,7 +64,7 @@ fn main() {
             // Miner
             let miner_config = &config.miner;
             let miner = Miner::new(&miner_config, rpc_urls);
-            let _ = spawn_miner(&miner);
+            spawn_miner(&miner);
 
             // Transfer all miner's utxo to bencher
             if miner.lock_script() != bencher.lock_script() {
@@ -159,10 +159,12 @@ pub fn init_global_genesis_info(config: &Config) {
     let rpc = Jsonrpc::connect(url);
     let genesis_block: BlockView = rpc
         .get_block_by_number(0)
-        .expect(&format!(
-            "Jsonrpc::get_block_by_number({}, 0), error: return None",
-            url
-        ))
+        .unwrap_or_else(|| {
+            panic!(
+                "Jsonrpc::get_block_by_number({}, 0), error: return None",
+                url
+            )
+        })
         .into();
     info!("[END] init_global_genesis_info {}", genesis_block.hash());
     *GENESIS_INFO.lock().unwrap() = genesis_block.into();

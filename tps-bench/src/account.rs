@@ -1,3 +1,4 @@
+#![allow(clippy::mutable_key_type)]
 use crate::config::TransactionType;
 use crate::global::{CELLBASE_MATURITY, MIN_SECP_CELL_CAPACITY, SIGHASH_ALL_TYPE_HASH};
 use crate::net::Net;
@@ -146,12 +147,12 @@ impl Account {
             );
         }
         let mut unmatured_utxo: Vec<_> = unmatureds
-            .into_iter()
+            .iter_mut()
             .map(|(out_point, (number, output))| {
-                (number.clone(), UTXO::new(output.clone(), out_point.clone()))
+                (*number, UTXO::new(output.clone(), out_point.clone()))
             })
             .collect();
-        unmatured_utxo.sort_by_key(|(number, _)| number.clone());
+        unmatured_utxo.sort_by_key(|(number, _)| *number);
         while let Some(true) = unmatured_utxo
             .first()
             .map(|number_and_utxo| is_matured(block_number, number_and_utxo.0))
@@ -341,9 +342,7 @@ fn rollback_for_reorg(net: &Net, old_header: &HeaderView) -> HeaderView {
     // NOTE: We cannot find the exactly fixed point of old_header and new tip header based on ckb
     // rpc interfaces.
 
-    let fixed_header = net
-        .get_header_by_number(old_header.number().saturating_sub(1000))
-        .expect(&format!("rollback_for_org(old_header={:?})", old_header))
-        .into();
-    fixed_header
+    net.get_header_by_number(old_header.number().saturating_sub(1000))
+        .unwrap_or_else(|| panic!("rollback_for_org(old_header={:?})", old_header))
+        .into()
 }

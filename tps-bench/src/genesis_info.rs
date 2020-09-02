@@ -10,7 +10,7 @@ pub struct GenesisInfo {
 
 impl GenesisInfo {
     pub fn assert_initialized(&self) {
-        assert!(self.block.transactions().len() > 0);
+        assert!(!self.block.transactions().is_empty());
     }
 
     pub fn dep_group_tx_hash(&self) -> Byte32 {

@@ -42,12 +42,14 @@ impl Net {
         let confirmed_number =
             unconfirmed_number.saturating_sub(*CONFIRMATION_BLOCKS.lock().unwrap());
         self.get_header_by_number(confirmed_number)
-            .expect(&format!(
-                "rpc.get_header_by_number({}, unconfirmed={}, confirmed={})",
-                self.endpoints[0].uri(),
-                unconfirmed_number,
-                confirmed_number
-            ))
+            .unwrap_or_else(|| {
+                panic!(
+                    "rpc.get_header_by_number({}, unconfirmed={}, confirmed={})",
+                    self.endpoints[0].uri(),
+                    unconfirmed_number,
+                    confirmed_number
+                )
+            })
             .into()
     }
 

@@ -111,11 +111,11 @@ impl BenchmarkConfig {
                 });
 
                 let recorder = METRICS_RECORDER.lock().unwrap();
-                recorder.as_ref().map(|mut recorder| {
+                if let Some(mut recorder) = recorder.as_ref() {
                     let _ = recorder.write(result.to_string().as_bytes());
-                    let _ = recorder.write("\n".as_bytes());
+                    let _ = recorder.write(b"\n");
                     let _ = recorder.flush();
-                });
+                };
 
                 info!("[BENCHMARK RESULT] {}", result,);
                 return result["metrics"]["tps"].as_u64().expect("get tps");

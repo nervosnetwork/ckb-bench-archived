@@ -43,13 +43,12 @@ pub fn construct_unsigned_transaction(
     let outputs_data = (0..outputs_count)
         .map(|_| Default::default())
         .collect::<Vec<_>>();
-    let raw_transaction = core::TransactionBuilder::default()
+    core::TransactionBuilder::default()
         .inputs(inputs)
         .outputs(outputs)
         .outputs_data(outputs_data)
         .cell_dep(SIGHASH_ALL_CELL_DEP.clone())
-        .build();
-    raw_transaction
+        .build()
 }
 
 pub fn sign_transaction(signer: &Account, tx: core::TransactionView) -> core::TransactionView {
