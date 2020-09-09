@@ -1,4 +1,3 @@
-use crate::global::METHOD_TO_EVAL_NET_STABLE;
 use crate::net::Net;
 use ckb_types::core::BlockView;
 use log::info;
@@ -37,9 +36,8 @@ pub struct Metrics {
     bench_nodes: u64,
 }
 
-pub fn wait_network_stabled(net: &Net) -> Metrics {
-    let method_to_eval_net_stable = *METHOD_TO_EVAL_NET_STABLE.lock().unwrap();
-    match method_to_eval_net_stable {
+pub fn wait_network_stabled(net: &Net, evaluation: MethodToEvalNetStable) -> Metrics {
+    match evaluation {
         MethodToEvalNetStable::RecentBlocktxnsNearly { window, margin } => {
             wait_recent_blocktxns_nearly(net, window, margin)
         }

@@ -88,6 +88,7 @@ fn main() {
             let benchmark = BenchmarkConfig {
                 transaction_type: TransactionType::In2Out2,
                 send_delay: 0,
+                method_to_eval_net_stable: None,
             };
             let best_tps = benchmark.find_best_bench(&net, &bencher, &bencher, &bencher_utxo_r);
             info!("Best TPS: {}", best_tps);
