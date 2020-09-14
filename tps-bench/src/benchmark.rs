@@ -1,8 +1,8 @@
 use crate::account::Account;
 use crate::config::TransactionType;
-use crate::global::{METRICS_RECORDER, MIN_SECP_CELL_CAPACITY};
+use crate::global::{METHOD_TO_EVAL_NET_STABLE, METRICS_RECORDER, MIN_SECP_CELL_CAPACITY};
 use crate::net::Net;
-use crate::net_monitor::wait_network_stabled;
+use crate::net_monitor::{wait_network_stabled, MethodToEvalNetStable};
 use crate::rpc::Jsonrpc;
 use crate::transfer::{construct_unsigned_transaction, sign_transaction};
 use crate::util::estimate_fee;
@@ -20,6 +20,7 @@ use std::time::{Duration, Instant};
 pub struct BenchmarkConfig {
     pub transaction_type: TransactionType,
     pub send_delay: u64, // micros
+    pub method_to_eval_net_stable: Option<MethodToEvalNetStable>,
 }
 
 impl BenchmarkConfig {
@@ -48,8 +49,11 @@ impl BenchmarkConfig {
         let net_notifier = {
             let net = net.clone();
             let (net_sender, net_notifier) = bounded(1);
+            let evaluation = self
+                .method_to_eval_net_stable
+                .unwrap_or_else(|| *METHOD_TO_EVAL_NET_STABLE.lock().unwrap());
             spawn(move || {
-                let metrics = wait_network_stabled(&net);
+                let metrics = wait_network_stabled(&net, evaluation);
                 let _ = net_sender.send(metrics);
             });
             net_notifier
