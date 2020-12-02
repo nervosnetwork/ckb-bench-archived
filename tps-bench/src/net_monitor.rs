@@ -14,6 +14,8 @@ pub enum MethodToEvalNetStable {
     RecentBlocktxnsNearly { window: u64, margin: u64 },
     #[allow(dead_code)]
     CustomBlocksElapsed { warmup: u64, window: u64 },
+    #[allow(dead_code)]
+    Never,
 }
 
 impl Default for MethodToEvalNetStable {
@@ -44,6 +46,10 @@ pub fn wait_network_stabled(net: &Net, evaluation: MethodToEvalNetStable) -> Met
         MethodToEvalNetStable::CustomBlocksElapsed { window, warmup } => {
             wait_custom_blocks_elapsed(net, window, warmup)
         }
+        MethodToEvalNetStable::Never => loop {
+            sleep(Duration::from_secs(60 * 10));
+            info!("net_monitor use MethodToEvalNetStable::Never will never exit");
+        },
     }
 }
 
