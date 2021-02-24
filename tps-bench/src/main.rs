@@ -18,6 +18,7 @@ use crate::config::{Config, TransactionType};
 use crate::global::{GENESIS_INFO, METRICS_RECORDER};
 use crate::miner::Miner;
 use crate::net::Net;
+use crate::net_monitor::Metrics;
 use crate::rpc::Jsonrpc;
 use crate::threads::{spawn_miner, spawn_pull_utxos, spawn_transfer_utxos};
 
@@ -48,7 +49,7 @@ fn main() {
             let miner = Miner::new(miner_config, rpc_urls);
             miner.generate_blocks(blocks);
         }
-        CommandLine::BenchMode(config) => {
+        CommandLine::BenchMode(config, skip_best_tps_caculation) => {
             info!("\nTPSBench start with configuration: {}", json!(config));
             init_logger(&config);
             init_metrics_recorder(&config);
@@ -85,14 +86,30 @@ fn main() {
                 );
             }
 
-            let benchmark = BenchmarkConfig {
-                transaction_type: TransactionType::In2Out2,
-                send_delay: 0,
-                method_to_eval_net_stable: None,
-            };
-            let best_tps = benchmark.find_best_bench(&net, &bencher, &bencher, &bencher_utxo_r);
-            info!("Best TPS: {}", best_tps);
-            println!("TPS: {}", best_tps);
+            if !skip_best_tps_caculation {
+                let benchmark = BenchmarkConfig {
+                    transaction_type: TransactionType::In2Out2,
+                    send_delay: 0,
+                    method_to_eval_net_stable: None,
+                };
+                let best_tps = benchmark.find_best_bench(&net, &bencher, &bencher, &bencher_utxo_r);
+                info!("Best TPS: {}", best_tps);
+                println!("TPS: {}", best_tps);
+            }
+        }
+        CommandLine::MetricMode(rpc_urls) => {
+            info!("\n Caculate TPS");
+
+            let rpc_urls = rpc_urls.iter().map(|url| url.as_str()).collect();
+            let net = Net::connect_all(rpc_urls);
+
+            let tip_block_number = net.get_confirmed_tip_number();
+            let blocks = (1..tip_block_number)
+                .map(|number| net.get_block_by_number(number).unwrap())
+                .map(|block| block.into())
+                .collect::<Vec<_>>();
+            let result = Metrics::eval_blocks(&net, blocks);
+            println!("{:?}", result);
         }
     }
 }
