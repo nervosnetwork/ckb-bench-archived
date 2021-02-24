@@ -16,6 +16,8 @@ pub enum MethodToEvalNetStable {
     CustomBlocksElapsed { warmup: u64, window: u64 },
     #[allow(dead_code)]
     Never,
+    #[allow(dead_code)]
+    TimedTask { duration_time: u64 },
 }
 
 impl Default for MethodToEvalNetStable {
@@ -36,6 +38,7 @@ pub struct Metrics {
     end_block_number: u64,
     network_nodes: u64,
     bench_nodes: u64,
+    total_transactions_size: usize,
 }
 
 pub fn wait_network_stabled(net: &Net, evaluation: MethodToEvalNetStable) -> Metrics {
@@ -50,6 +53,9 @@ pub fn wait_network_stabled(net: &Net, evaluation: MethodToEvalNetStable) -> Met
             sleep(Duration::from_secs(60 * 10));
             info!("net_monitor use MethodToEvalNetStable::Never will never exit");
         },
+        MethodToEvalNetStable::TimedTask { duration_time } => {
+            wait_duration_time_elapsed(net, duration_time)
+        }
     }
 }
 
@@ -132,6 +138,29 @@ fn wait_recent_blocktxns_nearly(net: &Net, window: u64, margin: u64) -> Metrics 
     }
 }
 
+fn wait_duration_time_elapsed(net: &Net, duration_time: u64) -> Metrics {
+    info!("[START] net_monitor::wait_duration_time_elapsed");
+    let first_tip_number = net.get_confirmed_tip_number();
+    let (start_time, mut last_print) = (Instant::now(), Instant::now());
+    while start_time.elapsed() <= Duration::from_secs(duration_time) {
+        if last_print.elapsed() >= Duration::from_secs(60) {
+            last_print = Instant::now();
+            info!(
+                "Bench progress ({:?}/{:?}) ...",
+                start_time.elapsed(),
+                Duration::from_secs(duration_time)
+            );
+        }
+        sleep(Duration::from_secs(1));
+    }
+    let last_tip_number = net.get_confirmed_tip_number();
+    let blocks = (first_tip_number..last_tip_number)
+        .map(|number| net.get_block_by_number(number).unwrap())
+        .map(|block| block.into())
+        .collect::<Vec<_>>();
+    Metrics::eval_blocks(net, blocks)
+}
+
 fn is_network_txpool_empty(net: &Net) -> bool {
     for rpc in net.endpoints() {
         let tx_pool_info = rpc.tx_pool_info();
@@ -143,10 +172,14 @@ fn is_network_txpool_empty(net: &Net) -> bool {
 }
 
 impl Metrics {
-    fn eval_blocks(net: &Net, blocks: Vec<BlockView>) -> Self {
+    pub fn eval_blocks(net: &Net, blocks: Vec<BlockView>) -> Self {
         let network_nodes = net.get_network_nodes();
         let bench_nodes = net.get_bench_nodes();
         let totaltxns: usize = blocks.iter().map(|block| block.transactions().len()).sum();
+        let total_transactions_size: usize = blocks
+            .iter()
+            .map(|block| eval_total_tx_size_in_block(block))
+            .sum();
         let front = blocks.first().unwrap();
         let back = blocks.last().unwrap();
         let average_block_transactions = (totaltxns / blocks.len()) as u64;
@@ -161,6 +194,15 @@ impl Metrics {
             end_block_number: back.number(),
             network_nodes,
             bench_nodes,
+            total_transactions_size,
         }
     }
+}
+
+fn eval_total_tx_size_in_block(block: &BlockView) -> usize {
+    block
+        .transactions()
+        .iter()
+        .map(|tx| tx.data().serialized_size_in_block())
+        .sum()
 }

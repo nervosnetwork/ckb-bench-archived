@@ -10,6 +10,7 @@ use std::path::PathBuf;
 
 pub const STAGING_SPEC: &str = include_str!("../specs/staging.toml");
 pub const DEV_SPEC: &str = include_str!("../specs/dev.toml");
+pub const RELEASE_SPEC: &str = include_str!("../specs/release.toml");
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Config {
@@ -73,6 +74,7 @@ impl Spec {
         let spec = match filepath {
             "staging" => toml::from_str(STAGING_SPEC).map_err(|err| err.to_string())?,
             "dev" => toml::from_str(DEV_SPEC).map_err(|err| err.to_string())?,
+            "release" => toml::from_str(RELEASE_SPEC).map_err(|err| err.to_string())?,
             _ => {
                 let content = std::fs::read_to_string(filepath).map_err(|err| err.to_string())?;
                 let spec: Self = toml::from_str(&content).map_err(|err| err.to_string())?;

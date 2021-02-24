@@ -16,7 +16,7 @@ confirmation_blocks = 6
 # choose the method to eval network stable
 # CustomBlocksElapsed => { warmup = xx, window = xx }
 # RecentBlocktxnsNearly => { margin = xx, window = xx } }
-method_to_eval_network_stable = { CustomBlocksElapsed = { warmup = 20, window = 21 } }
+method_to_eval_network_stable = { TimedTask = { duration_time = 86400 } }
 
 # Dummy Miner
 ## - block_time :: millisecond
@@ -27,9 +27,6 @@ block_time = 1000
 # Benchmark
 ## - transaction_type :: "In1Out1" | "In2Out2" | "In3Out3"
 ## - send_delay :: microsecond
-[[benchmarks]]
-transaction_type = "In2Out2"
-send_delay = 10000
 [[benchmarks]]
 transaction_type = "In2Out2"
 send_delay = 1000
