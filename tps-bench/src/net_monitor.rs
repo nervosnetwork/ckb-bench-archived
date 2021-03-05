@@ -38,7 +38,7 @@ pub struct Metrics {
     end_block_number: u64,
     network_nodes: u64,
     bench_nodes: u64,
-    total_transactions_size: usize,
+    total_transactions_size: u64,
 }
 
 pub fn wait_network_stabled(net: &Net, evaluation: MethodToEvalNetStable) -> Metrics {
@@ -98,11 +98,7 @@ fn wait_custom_blocks_elapsed(net: &Net, window: u64, warmup: u64) -> Metrics {
     }
     info!("complete evaluation, took {:?}", start_time.elapsed());
 
-    let blocks = (current_tip_number..current_tip_number + window)
-        .map(|number| net.get_block_by_number(number).unwrap())
-        .map(|block| block.into())
-        .collect::<Vec<_>>();
-    Metrics::eval_blocks(net, blocks)
+    Metrics::eval_blocks(net, current_tip_number, current_tip_number + window)
 }
 
 fn wait_recent_blocktxns_nearly(net: &Net, window: u64, margin: u64) -> Metrics {
@@ -126,7 +122,9 @@ fn wait_recent_blocktxns_nearly(net: &Net, window: u64, margin: u64) -> Metrics 
         }
 
         if queue.len() >= window as usize {
-            let metrics = Metrics::eval_blocks(net, queue.iter().cloned().collect());
+            let from_number = queue.pop_front().unwrap().number();
+            let end_number = queue.pop_back().unwrap().number();
+            let metrics = Metrics::eval_blocks(net, from_number, end_number);
             info!("[metrics] {}", json!(metrics));
 
             let mintxns = queue.iter().map(|b| b.transactions().len()).min().unwrap();
@@ -154,11 +152,7 @@ fn wait_duration_time_elapsed(net: &Net, duration_time: u64) -> Metrics {
         sleep(Duration::from_secs(1));
     }
     let last_tip_number = net.get_confirmed_tip_number();
-    let blocks = (first_tip_number..last_tip_number)
-        .map(|number| net.get_block_by_number(number).unwrap())
-        .map(|block| block.into())
-        .collect::<Vec<_>>();
-    Metrics::eval_blocks(net, blocks)
+    Metrics::eval_blocks(net, first_tip_number, last_tip_number)
 }
 
 fn is_network_txpool_empty(net: &Net) -> bool {
@@ -172,26 +166,31 @@ fn is_network_txpool_empty(net: &Net) -> bool {
 }
 
 impl Metrics {
-    pub fn eval_blocks(net: &Net, blocks: Vec<BlockView>) -> Self {
+    pub fn eval_blocks(net: &Net, from_number: u64, end_number: u64) -> Self {
         let network_nodes = net.get_network_nodes();
         let bench_nodes = net.get_bench_nodes();
-        let totaltxns: usize = blocks.iter().map(|block| block.transactions().len()).sum();
-        let total_transactions_size: usize = blocks
-            .iter()
-            .map(|block| eval_total_tx_size_in_block(block))
-            .sum();
-        let front = blocks.first().unwrap();
-        let back = blocks.last().unwrap();
-        let average_block_transactions = (totaltxns / blocks.len()) as u64;
+
+        let mut totaltxns: usize = 0;
+        let mut total_transactions_size: u64 = 0;
+        for number in from_number..=end_number {
+            let block: BlockView = net.get_block_by_number(number).unwrap().into();
+            totaltxns += block.transactions().len();
+            total_transactions_size += eval_total_tx_size_in_block(&block);
+        }
+
+        let blocks_count: u64 = end_number - from_number + 1;
+        let front: BlockView = net.get_block_by_number(from_number).unwrap().into();
+        let back: BlockView = net.get_block_by_number(end_number).unwrap().into();
+        let average_block_transactions = (totaltxns / blocks_count as usize) as u64;
         let elapsed_ms = back.timestamp().saturating_sub(front.timestamp());
-        let average_block_time_ms = max(1, elapsed_ms / (blocks.len() as u64));
+        let average_block_time_ms = max(1, elapsed_ms / blocks_count);
         let tps = (totaltxns as f64 * 1000.0 / elapsed_ms as f64) as u64;
         Metrics {
             tps,
             average_block_time_ms,
             average_block_transactions,
-            start_block_number: front.number(),
-            end_block_number: back.number(),
+            start_block_number: from_number,
+            end_block_number: end_number,
             network_nodes,
             bench_nodes,
             total_transactions_size,
@@ -199,10 +198,10 @@ impl Metrics {
     }
 }
 
-fn eval_total_tx_size_in_block(block: &BlockView) -> usize {
+fn eval_total_tx_size_in_block(block: &BlockView) -> u64 {
     block
         .transactions()
         .iter()
-        .map(|tx| tx.data().serialized_size_in_block())
+        .map(|tx| tx.data().serialized_size_in_block() as u64)
         .sum()
 }

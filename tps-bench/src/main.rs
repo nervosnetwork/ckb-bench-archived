@@ -104,11 +104,7 @@ fn main() {
             let net = Net::connect_all(rpc_urls);
 
             let tip_block_number = net.get_confirmed_tip_number();
-            let blocks = (1..tip_block_number)
-                .map(|number| net.get_block_by_number(number).unwrap())
-                .map(|block| block.into())
-                .collect::<Vec<_>>();
-            let result = Metrics::eval_blocks(&net, blocks);
+            let result = Metrics::eval_blocks(&net, 1, tip_block_number);
             println!("{:?}", result);
         }
     }
