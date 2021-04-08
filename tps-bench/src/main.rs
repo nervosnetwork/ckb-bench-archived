@@ -22,19 +22,19 @@ use crate::net_monitor::Metrics;
 use crate::rpc::Jsonrpc;
 use crate::threads::{spawn_miner, spawn_pull_utxos, spawn_transfer_utxos};
 
+pub mod account;
 pub mod benchmark;
+pub mod command;
+pub mod config;
+pub mod genesis_info;
 pub mod global;
 pub mod miner;
 pub mod net;
 pub mod net_monitor;
+pub mod rpc;
 pub mod threads;
 pub mod transfer;
 pub mod util;
-pub mod account;
-pub mod command;
-pub mod config;
-pub mod genesis_info;
-pub mod rpc;
 pub mod utxo;
 
 fn main() {
