@@ -3,13 +3,9 @@ extern crate clap;
 
 use ckb_types::core::BlockView;
 use log::{info, LevelFilter};
-use metrics_exporter_http::HttpExporter;
-use metrics_observer_prometheus::PrometheusBuilder;
-use metrics_runtime::Receiver;
 use serde_json::json;
 use simplelog::{CombinedLogger, WriteLogger};
 use std::fs::OpenOptions;
-use std::net::SocketAddr;
 
 use crate::account::Account;
 use crate::benchmark::BenchmarkConfig;
@@ -34,6 +30,7 @@ pub mod net_monitor;
 pub mod rpc;
 pub mod threads;
 pub mod transfer;
+#[macro_use]
 pub mod util;
 pub mod utxo;
 
@@ -53,7 +50,6 @@ fn main() {
             info!("\nTPSBench start with configuration: {}", json!(config));
             init_logger(&config);
             init_metrics_recorder(&config);
-            init_metrics(&config);
             init_global_genesis_info(&config);
 
             let rpc_urls = config.rpc_urls();
@@ -138,32 +134,6 @@ fn init_metrics_recorder(config: &Config) {
         "TPSBench appends benchmark results into {}",
         abs_path.to_string_lossy()
     );
-}
-
-// TODO It's just draft version, I don't really know how to init metrics service
-fn init_metrics(config: &Config) {
-    if config.metrics_url.is_none() {
-        info!("No start metrics service");
-        return;
-    }
-
-    let metrics_url = config.metrics_url.as_ref().unwrap();
-    let listen = metrics_url.parse::<SocketAddr>().unwrap();
-    let receiver = Receiver::builder().build().unwrap();
-    let controller = receiver.controller();
-    let builder = PrometheusBuilder::new();
-    let exporter = HttpExporter::new(controller, builder, listen);
-
-    let runtime = tokio::runtime::Builder::default()
-        .threaded_scheduler()
-        .enable_all()
-        .build()
-        .unwrap();
-    runtime.handle().spawn(async {
-        tokio::spawn(exporter.async_run());
-    });
-
-    // info!("Metrics URL: {}", metrics_url);
 }
 
 /// Initialize the global `GENESIS_INFO` with the genesis block
