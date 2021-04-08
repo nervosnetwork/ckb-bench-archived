@@ -1,4 +1,5 @@
 use crate::config::{Config, Spec, Url};
+use crate::prompt_and_exit;
 
 pub const MINE_SUBCOMMAND: &str = "mine";
 pub const BENCH_SUBCOMMAND: &str = "bench";
