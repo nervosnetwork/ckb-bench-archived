@@ -26,9 +26,6 @@ pub struct Spec {
     pub miner: MinerConfig,
     pub benchmarks: Vec<BenchmarkConfig>,
 
-    #[serde(default)]
-    pub metrics_url: Option<String>,
-
     pub consensus_cellbase_maturity: u64,
     pub confirmation_blocks: u64,
     pub ensure_matured_capacity_greater_than: u64,

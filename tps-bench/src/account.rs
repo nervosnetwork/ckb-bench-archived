@@ -2,6 +2,7 @@
 use crate::config::TransactionType;
 use crate::global::{CELLBASE_MATURITY, MIN_SECP_CELL_CAPACITY, SIGHASH_ALL_TYPE_HASH};
 use crate::net::Net;
+use crate::prompt_and_exit;
 use crate::rpc::Jsonrpc;
 use crate::transfer::{construct_unsigned_transaction, sign_transaction};
 use crate::util::estimate_fee;
