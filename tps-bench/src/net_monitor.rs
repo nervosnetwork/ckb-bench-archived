@@ -31,14 +31,14 @@ impl Default for MethodToEvalNetStable {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Metrics {
-    tps: u64,
-    average_block_time_ms: u64,
-    average_block_transactions: u64,
-    start_block_number: u64,
-    end_block_number: u64,
-    network_nodes: u64,
-    bench_nodes: u64,
-    total_transactions_size: u64,
+    pub tps: u64,
+    pub average_block_time_ms: u64,
+    pub average_block_transactions: u64,
+    pub start_block_number: u64,
+    pub end_block_number: u64,
+    pub network_nodes: u64,
+    pub bench_nodes: u64,
+    pub total_transactions_size: u64,
 }
 
 pub fn wait_network_stabled(net: &Net, evaluation: MethodToEvalNetStable) -> Metrics {

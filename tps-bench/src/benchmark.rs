@@ -107,11 +107,16 @@ impl BenchmarkConfig {
 
             if let Ok(metrics) = net_notifier.try_recv() {
                 let result = json!({
-                    "benchmark": {
                     "send_delay": send_delay,
                     "transaction_type": self.transaction_type,
-                    },
-                    "metrics": metrics,
+                    "tps": metrics.tps,
+                    "average_block_time_ms": metrics.average_block_time_ms,
+                    "average_block_transactions": metrics.average_block_transactions,
+                    "start_block_number": metrics.start_block_number,
+                    "end_block_number": metrics.end_block_number,
+                    "network_nodes": metrics.network_nodes,
+                    "bench_nodes": metrics.bench_nodes,
+                    "total_transactions_size": metrics.total_transactions_size,
                 });
 
                 let recorder = METRICS_RECORDER.lock().unwrap();
