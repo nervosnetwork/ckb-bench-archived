@@ -1,7 +1,7 @@
 use ckb_jsonrpc_types::{
-    Block, BlockNumber, BlockTemplate, BlockView, CellOutputWithOutPoint, CellWithStatus,
-    ChainInfo, DryRunResult, HeaderView, LocalNode, OutPoint, PeerState, RemoteNode, Transaction,
-    TransactionWithStatus, TxPoolInfo, Uint64, Version,
+    Block, BlockNumber, BlockTemplate, BlockView, CellWithStatus, ChainInfo, DryRunResult,
+    HeaderView, LocalNode, OutPoint, PeerState, RemoteNode, Transaction, TransactionWithStatus,
+    TxPoolInfo, Uint64, Version,
 };
 use ckb_types::{
     core::{BlockNumber as CoreBlockNumber, Version as CoreVersion},
@@ -103,27 +103,6 @@ impl Jsonrpc {
             .get_header_by_number(number.into())
             .call()
             .unwrap_or_else(|_| panic!("Jsonrpc::get_header_by_number({}, {})", self.uri(), number))
-    }
-
-    pub fn get_cells_by_lock_hash(
-        &self,
-        lock_hash: Byte32,
-        from: CoreBlockNumber,
-        to: CoreBlockNumber,
-    ) -> Vec<CellOutputWithOutPoint> {
-        self.inner
-            .lock()
-            .get_cells_by_lock_hash(lock_hash.unpack(), from.into(), to.into())
-            .call()
-            .unwrap_or_else(|_| {
-                panic!(
-                    "Jsonrpc::get_cells_by_lock_hash({}, {}, {}, {})",
-                    self.uri(),
-                    lock_hash,
-                    from,
-                    to
-                )
-            })
     }
 
     pub fn get_live_cell(&self, out_point: OutPoint) -> CellWithStatus {
@@ -272,12 +251,6 @@ jsonrpc_client!(pub struct Inner {
     pub fn get_transaction(&mut self, _hash: H256) -> RpcRequest<Option<TransactionWithStatus>>;
     pub fn get_block_hash(&mut self, _number: BlockNumber) -> RpcRequest<Option<H256>>;
     pub fn get_tip_header(&mut self) -> RpcRequest<HeaderView>;
-    pub fn get_cells_by_lock_hash(
-        &mut self,
-        _lock_hash: H256,
-        _from: BlockNumber,
-        _to: BlockNumber
-    ) -> RpcRequest<Vec<CellOutputWithOutPoint>>;
     pub fn get_live_cell(&mut self, _out_point: OutPoint) -> RpcRequest<CellWithStatus>;
     pub fn get_tip_block_number(&mut self) -> RpcRequest<BlockNumber>;
     pub fn local_node_info(&mut self) -> RpcRequest<LocalNode>;
