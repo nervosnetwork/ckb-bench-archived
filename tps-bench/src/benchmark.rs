@@ -106,7 +106,11 @@ impl BenchmarkConfig {
             sleep(Duration::from_micros(send_delay));
 
             if let Ok(metrics) = net_notifier.try_recv() {
+                let ckb_version = net.local_node_info().version;
+                let time = chrono::Utc::now();
                 let result = json!({
+                    "time": time.to_string(),
+                    "ckb_version": ckb_version,
                     "send_delay": send_delay,
                     "transaction_type": self.transaction_type,
                     "tps": metrics.tps,
