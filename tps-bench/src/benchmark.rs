@@ -131,7 +131,7 @@ impl BenchmarkConfig {
                 };
 
                 info!("[BENCHMARK RESULT] {}", result,);
-                return result["metrics"]["tps"].as_u64().expect("get tps");
+                return metrics.tps;
             }
         }
         0
