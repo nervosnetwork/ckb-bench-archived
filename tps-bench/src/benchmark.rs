@@ -106,7 +106,11 @@ impl BenchmarkConfig {
             sleep(Duration::from_micros(send_delay));
 
             if let Ok(metrics) = net_notifier.try_recv() {
+                let ckb_version = net.local_node_info().version;
+                let time = chrono::Utc::now();
                 let result = json!({
+                    "time": time.to_string(),
+                    "ckb_version": ckb_version,
                     "send_delay": send_delay,
                     "transaction_type": self.transaction_type,
                     "tps": metrics.tps,
@@ -115,6 +119,7 @@ impl BenchmarkConfig {
                     "start_block_number": metrics.start_block_number,
                     "end_block_number": metrics.end_block_number,
                     "network_nodes": metrics.network_nodes,
+                    "instances_count": metrics.network_nodes,
                     "bench_nodes": metrics.bench_nodes,
                     "total_transactions_size": metrics.total_transactions_size,
                 });
@@ -127,7 +132,7 @@ impl BenchmarkConfig {
                 };
 
                 info!("[BENCHMARK RESULT] {}", result,);
-                return result["metrics"]["tps"].as_u64().expect("get tps");
+                return metrics.tps;
             }
         }
         0

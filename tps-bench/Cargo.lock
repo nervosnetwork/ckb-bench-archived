@@ -2186,6 +2186,7 @@ dependencies = [
 name = "tps-bench"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "ckb-chain-spec",
  "ckb-crypto",
  "ckb-hash",
