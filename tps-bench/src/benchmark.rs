@@ -119,6 +119,7 @@ impl BenchmarkConfig {
                     "start_block_number": metrics.start_block_number,
                     "end_block_number": metrics.end_block_number,
                     "network_nodes": metrics.network_nodes,
+                    "instances_count": metrics.network_nodes,
                     "bench_nodes": metrics.bench_nodes,
                     "total_transactions_size": metrics.total_transactions_size,
                 });
