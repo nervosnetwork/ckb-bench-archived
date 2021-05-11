@@ -1,4 +1,4 @@
-name: melease
+name: Release
 
 on:
   push:
