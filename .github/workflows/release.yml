@@ -1,0 +1,26 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+      - 'rc-v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      tarball: "tps-bench_${GITHUB_REF#refs/*/}_x86_64-unknown-linux-gnu.tar.gz"
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build TPS-Bench
+        run: |
+          cd tps-bench && cargo build --release
+          cd target/release && tar -czvf ${{ env.tarball }} tps-bench
+      - name: Release TPS-Bench
+        uses: softprops/action-gh-release@v1
+        with:
+          name: "${{ env.tarball }}"
+          files: "target/release/${{ env.tarball }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
