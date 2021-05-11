@@ -16,10 +16,10 @@ jobs:
         run: |
           cd tps-bench && cargo build --release
           cd target/release
-          tar -czvf tps-bench_${{ env.GIT_TAG_NAME }}_x86_64-unknown-linux-gnu.tar.gz  tps-bench
+          tar -czf ${{ github.workspace }}/tps-bench_${{ env.GIT_TAG_NAME }}_x86_64-unknown-linux-gnu.tar.gz  tps-bench
       - name: Release TPS-Bench
         uses: softprops/action-gh-release@v1
         with:
-          files: "target/release/tps-bench_${{ env.GIT_TAG_NAME }}_x86_64-unknown-linux-gnu.tar.gz"
+          files: "tps-bench_${{ env.GIT_TAG_NAME }}_x86_64-unknown-linux-gnu.tar.gz"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
