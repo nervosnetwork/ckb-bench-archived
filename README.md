@@ -1,5 +1,1 @@
-# How to use
-
-1: [Creates the AWS infrastructure](terraform/aws/README.md)
-
-2: [Setup and run ckb bench script](ansible/README.md)
+**This repository is no longer maintained. Please use the alternative [ckb-bench](https://github.com/nervosnetwork/ckb-integration-test/tree/main/ckb-bench)**
